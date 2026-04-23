@@ -289,8 +289,12 @@ def format_results(
 
             # Find card data
             card = next((c for c in cards if c['name'] == card_name), None)
-            if card and show_ascii and 'art' in card:
-                output_lines.append("\n   " + "\n   ".join(card['art']))
+            if card and show_ascii:
+                art_key = 'reversed' if position == 'reversed' else 'card'
+                art = card.get(art_key) or card.get('card', '')
+                if art:
+                    output_lines.append("")
+                    output_lines.append(art)
 
         return "\n".join(output_lines)
 
