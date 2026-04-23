@@ -1,2 +1,4 @@
 {"id":"int-f86b1444","kind":"field_change","created_at":"2026-04-23T06:32:30.735349998Z","actor":"Gabe Ortiz","issue_id":"semantic-tarot-eka","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
 {"id":"int-456e7c48","kind":"field_change","created_at":"2026-04-23T08:21:46.949132527Z","actor":"Gabe Ortiz","issue_id":"semantic-tarot-823","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
+{"id":"int-d8498f19","kind":"field_change","created_at":"2026-04-23T12:13:41.767703362Z","actor":"Gabe Ortiz","issue_id":"tarot-4jx","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-4fbf0d31","kind":"field_change","created_at":"2026-04-23T12:14:50.559793185Z","actor":"Gabe Ortiz","issue_id":"tarot-4jx","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}

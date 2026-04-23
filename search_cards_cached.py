@@ -186,7 +186,8 @@ def find_similar_cards(
     position: str,
     embeddings_data: List[Dict],
     top_k: int = 5,
-    system_filter: str = None
+    system_filter: str = None,
+    exclude_same_card: bool = True,
 ) -> List[Tuple[str, str, float]]:
     """
     Find cards similar to a given card.
@@ -197,6 +198,7 @@ def find_similar_cards(
         embeddings_data: List of card embeddings
         top_k: Number of similar cards to return (excluding the input card)
         system_filter: Filter by interpretation system (None for combined/all)
+        exclude_same_card: Exclude same card in both positions (default True)
 
     Returns:
         List of (card_name, position, similarity_score) tuples
@@ -223,9 +225,13 @@ def find_similar_cards(
         if card_data.get('interpretation_system', 'combined') != target_system:
             continue
 
-        # Skip the input card itself
-        if (card_data['card_name'] == card_name and
-            card_data['position'] == position):
+        # Exclude same card (both positions) by default; otherwise only
+        # skip the exact card+position match.
+        if exclude_same_card:
+            if card_data['card_name'] == card_name:
+                continue
+        elif (card_data['card_name'] == card_name and
+              card_data['position'] == position):
             continue
 
         similarity = cosine_similarity(input_embedding, card_data['embedding'])
