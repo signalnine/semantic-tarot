@@ -129,6 +129,21 @@ def draw_card(allow_reversed: bool = True) -> tuple:
     is_reversed = random.choice([True, False]) if allow_reversed else False
     return card, is_reversed
 
+def draw_unique_cards(n: int, allow_reversed: bool = True) -> List[tuple]:
+    """Deal n distinct cards from the deck, optionally with reversals.
+
+    Models a physical shuffle: each card appears at most once per spread.
+    """
+    if n > len(tarot_deck):
+        raise ValueError(
+            f"Cannot draw {n} unique cards from a deck of {len(tarot_deck)}"
+        )
+    sampled = random.sample(tarot_deck, n)
+    return [
+        (card, random.choice([True, False]) if allow_reversed else False)
+        for card in sampled
+    ]
+
 def single_card_reading():
     """Draw a single card"""
     print("\n" + "═" * 50)
@@ -145,11 +160,11 @@ def three_card_reading():
     print("═" * 50)
 
     positions = ["PAST", "PRESENT", "FUTURE"]
+    dealt = draw_unique_cards(len(positions))
     cards_drawn = []
 
-    for position in positions:
+    for position, (card, is_reversed) in zip(positions, dealt):
         print(f"\n{position}:")
-        card, is_reversed = draw_card()
         display_card(card, is_reversed)
         cards_drawn.append((card['name'], is_reversed))
 
@@ -177,11 +192,11 @@ def celtic_cross_reading():
         "10. Final Outcome"
     ]
 
+    dealt = draw_unique_cards(len(positions))
     cards_drawn = []
 
-    for position in positions:
+    for position, (card, is_reversed) in zip(positions, dealt):
         print(f"\n{position}:")
-        card, is_reversed = draw_card()
         display_card(card, is_reversed)
         cards_drawn.append((card['name'], is_reversed))
 
@@ -206,11 +221,11 @@ def horseshoe_reading():
         "7. Likely Outcome"
     ]
 
+    dealt = draw_unique_cards(len(positions))
     cards_drawn = []
 
-    for position in positions:
+    for position, (card, is_reversed) in zip(positions, dealt):
         print(f"\n{position}:")
-        card, is_reversed = draw_card()
         display_card(card, is_reversed)
         cards_drawn.append((card['name'], is_reversed))
 
@@ -250,11 +265,11 @@ def relationship_reading():
         "5. Potential Outcome"
     ]
 
+    dealt = draw_unique_cards(len(positions))
     cards_drawn = []
 
-    for position in positions:
+    for position, (card, is_reversed) in zip(positions, dealt):
         print(f"\n{position}:")
-        card, is_reversed = draw_card()
         display_card(card, is_reversed)
         cards_drawn.append((card['name'], is_reversed))
 
