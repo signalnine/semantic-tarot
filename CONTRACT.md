@@ -1,42 +1,46 @@
-# Contract: daily_card must print header once and handle invalid saved card_name cleanly
+# Contract: tarot.py search_by_keyword must cover interpretation text
 
 ## Bug
 
-`tarot.daily_card()` has a control-flow bug when `daily_card.json` has
-today's date but the saved `card_name` doesn't match any card in the deck
-(e.g. deck renamed, data corruption, or manual edit).
+`tarot.search_by_keyword()` (menu option 9, "Search by keyword") only
+checks `card['name']`, `card['desc']`, and `card['rdesc']` from
+`cards.json`. Those are one-line blurbs. Central themes that live in
+`interpretations.json` -- "shadow" is the canonical example, appearing
+20+ times across the Jungian system but never in `cards.json` -- return
+"No cards found matching 'shadow'", which surprises anyone relying on
+the menu to browse by concept.
 
-Current behavior:
-1. Reads today's entry, prints the "CARD OF THE DAY - <date>" header.
-2. Loops through `tarot_deck` looking for the saved card_name; no match.
-3. Falls out of the loop WITHOUT returning.
-4. Execution proceeds to the fresh-generation block, which prints the
-   header a SECOND time, draws a new random card, and OVERWRITES
-   `daily_card.json`.
-
-The header is printed twice and the "daily" invariant (same card per
-day) is silently broken when the saved entry is stale.
+The menu advertises this as a general search tool and the README
+describes it as "Search through all card descriptions", so the intent
+is broader than the cards.json blurbs.
 
 ## Fix
 
-Separate the "load today's card" step from the "generate fresh" step.
-Resolve the saved card first; only if today's entry resolves to a real
-card do we take the early-return path. Otherwise fall through once to
-the generation block, which prints the header and saves. Header is
-printed exactly once in every code path.
+Extend `search_by_keyword` to also scan every interpretation system's
+upright and reversed text (case-insensitively). A card that matches in
+multiple places appears once. Existing name/desc/rdesc matches keep
+working. The empty-keyword guard from the previous fix (`tarot-fx5`)
+is preserved.
 
 ## Criteria
 
-- [x] When `daily_card.json` has today's date and a valid card_name, the
-      header is printed exactly once and no new card is drawn/saved.
-      Verify: count occurrences of "CARD OF THE DAY" in captured stdout; file unchanged.
-- [x] When `daily_card.json` has today's date but an invalid card_name,
-      the header is printed exactly once and a fresh card is saved.
-      Verify: stdout contains the header exactly once; file now has a valid card_name.
-- [x] When `daily_card.json` has a stale date, the header is printed
-      exactly once and a fresh card is saved for today.
-      Verify: stdout contains header once; file date is today; file card_name is in deck.
-- [x] When `daily_card.json` is missing, the header is printed exactly
-      once and a fresh card is saved.
-      Verify: stdout contains header once; file created with today's date and a valid card.
+- [x] `search_by_keyword("shadow")` returns a non-empty list.
+      Verify: call the function directly, assert result is truthy.
+- [x] `search_by_keyword("Fool")` still returns The Fool (name match).
+      Verify: result contains a card whose name is "The Fool".
+- [x] A keyword taken from `cards.json` desc still matches that card.
+      Verify: pick first card, use first word of its `desc`, assert the
+      card is in the results.
+- [x] Case-insensitive for interpretation matches: "shadow", "SHADOW",
+      and "ShAdOw" return the same set of cards.
+      Verify: compare sorted name lists from the three queries.
+- [x] Cards are not duplicated when the keyword matches in multiple
+      systems for the same card.
+      Verify: len(names) == len(set(names)).
+- [x] Nonsense keyword returns an empty list.
+      Verify: search for an obvious non-word, assert `== []`.
+- [x] Empty / whitespace-only keyword still returns [] without flooding
+      output (regression guard for the prior empty-keyword fix).
+      Verify: `search_by_keyword("")` and `search_by_keyword("   ")`
+      both return `[]`.
 - [x] Full existing test suite still passes. Verify: `pytest` exits 0.

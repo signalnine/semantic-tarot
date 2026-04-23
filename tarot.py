@@ -103,7 +103,13 @@ def search_card(card_name: str):
     return None
 
 def search_by_keyword(keyword: str):
-    """Search for cards by keyword in their descriptions"""
+    """Search for cards by keyword in their descriptions.
+
+    Matches the keyword (case-insensitive) against the card name, the
+    brief meanings in cards.json, and every interpretation-system entry
+    in interpretations.json (upright and reversed). A card matched in
+    multiple systems appears once.
+    """
     keyword_lower = keyword.strip().lower()
     if not keyword_lower:
         print("Please enter a keyword to search.")
@@ -116,6 +122,20 @@ def search_by_keyword(keyword: str):
             keyword_lower in card['desc'].lower() or
             keyword_lower in card['rdesc'].lower()):
             matching_cards.append(card)
+            continue
+
+        card_interp = interpretations_db.get(card['name'])
+        if not card_interp:
+            continue
+        for system_data in card_interp.values():
+            if not isinstance(system_data, dict):
+                continue
+            if any(
+                isinstance(text, str) and keyword_lower in text.lower()
+                for text in system_data.values()
+            ):
+                matching_cards.append(card)
+                break
 
     if matching_cards:
         print(f"\nFound {len(matching_cards)} card(s) matching '{keyword}':\n")
