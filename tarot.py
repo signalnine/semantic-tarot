@@ -336,23 +336,27 @@ def daily_card():
     """Get a card for the day (same card per day)"""
     today = datetime.now().strftime("%Y-%m-%d")
 
-    # Check if we already have a card for today
+    # Try to reuse today's saved card if the file exists, is for today,
+    # and references a card that actually exists in the deck. Anything
+    # else falls through to fresh generation so the header is only
+    # printed once per call.
     if os.path.exists(DAILY_CARD_FILE):
         try:
             with open(DAILY_CARD_FILE, 'r') as f:
                 daily_data = json.load(f)
 
             if daily_data.get('date') == today:
-                print("\n" + "═" * 50)
-                print(f"CARD OF THE DAY - {today}")
-                print("═" * 50)
-
-                # Find the card
-                for card in tarot_deck:
-                    if card['name'] == daily_data['card_name']:
-                        display_card(card, daily_data['is_reversed'])
-                        return
-        except:
+                saved_card = next(
+                    (c for c in tarot_deck if c['name'] == daily_data.get('card_name')),
+                    None
+                )
+                if saved_card is not None:
+                    print("\n" + "═" * 50)
+                    print(f"CARD OF THE DAY - {today}")
+                    print("═" * 50)
+                    display_card(saved_card, daily_data.get('is_reversed', False))
+                    return
+        except (OSError, json.JSONDecodeError):
             pass
 
     # Generate new daily card

@@ -1,43 +1,42 @@
-# Contract: search_cards_cached.py --similar must accept case-variant card names
+# Contract: daily_card must print header once and handle invalid saved card_name cleanly
 
 ## Bug
 
-`search_cards_cached.py`'s `find_similar_cards()` compares card names with
-`card_data['card_name'] == card_name` (case-sensitive). Both entry points
--- the `--similar` CLI flag and the interactive `similar <card>` command
--- pass the user's input straight through. A lowercase or mixed-case
-query like `--similar "the fool"` raises `ValueError: Card not found:
-the fool (upright)` even though "The Fool" is in the deck.
+`tarot.daily_card()` has a control-flow bug when `daily_card.json` has
+today's date but the saved `card_name` doesn't match any card in the deck
+(e.g. deck renamed, data corruption, or manual edit).
 
-The non-cached `search_cards.py` avoids this by doing a case-insensitive
-lookup at the CLI layer (`c['name'].lower() == card_name.lower()`) and
-passing the canonical name to `find_similar_cards`. The cached version
-skips that step.
+Current behavior:
+1. Reads today's entry, prints the "CARD OF THE DAY - <date>" header.
+2. Loops through `tarot_deck` looking for the saved card_name; no match.
+3. Falls out of the loop WITHOUT returning.
+4. Execution proceeds to the fresh-generation block, which prints the
+   header a SECOND time, draws a new random card, and OVERWRITES
+   `daily_card.json`.
+
+The header is printed twice and the "daily" invariant (same card per
+day) is silently broken when the saved entry is stale.
 
 ## Fix
 
-Normalize the input at both entry points in `search_cards_cached.py`
-(CLI `--similar` and interactive `similar <cmd>`): look up the canonical
-card name case-insensitively before calling `find_similar_cards`. Emit a
-clear "card not found" error when no match exists. `find_similar_cards`
-itself remains unchanged so its contract (exact match on canonical name)
-is preserved.
+Separate the "load today's card" step from the "generate fresh" step.
+Resolve the saved card first; only if today's entry resolves to a real
+card do we take the early-return path. Otherwise fall through once to
+the generation block, which prints the header and saves. Header is
+printed exactly once in every code path.
 
 ## Criteria
 
-- [x] `--similar "the fool"` succeeds and returns results for "The Fool".
-      Verify: invoke CLI with lowercase name, exit code 0, stdout contains
-      card names.
-- [x] `--similar "THE FOOL"` succeeds the same way (uppercase).
-      Verify: same as above with uppercase input.
-- [x] `--similar "  The Fool  "` succeeds (whitespace stripped).
-      Verify: same as above with padded input.
-- [x] `--similar "Not A Real Card"` fails with a clear error and non-zero
-      exit code. Verify: stderr mentions the card, exit code != 0.
-- [x] Interactive `similar the fool` succeeds (case-insensitive).
-      Verify: drive `interactive_mode` with a stub stdin, assert output
-      contains similar-card names instead of an error.
-- [x] `find_similar_cards()` itself is unchanged: passing a non-canonical
-      name still raises `ValueError`. Verify: call directly with lowercase
-      and expect `ValueError`.
+- [x] When `daily_card.json` has today's date and a valid card_name, the
+      header is printed exactly once and no new card is drawn/saved.
+      Verify: count occurrences of "CARD OF THE DAY" in captured stdout; file unchanged.
+- [x] When `daily_card.json` has today's date but an invalid card_name,
+      the header is printed exactly once and a fresh card is saved.
+      Verify: stdout contains the header exactly once; file now has a valid card_name.
+- [x] When `daily_card.json` has a stale date, the header is printed
+      exactly once and a fresh card is saved for today.
+      Verify: stdout contains header once; file date is today; file card_name is in deck.
+- [x] When `daily_card.json` is missing, the header is printed exactly
+      once and a fresh card is saved.
+      Verify: stdout contains header once; file created with today's date and a valid card.
 - [x] Full existing test suite still passes. Verify: `pytest` exits 0.
