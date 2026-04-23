@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+EMBEDDINGS_FILE = REPO_ROOT / "card_embeddings_v1_5.json"
 
 
 # search_cards_cached imports embedding_cache at module load. Stub it so
@@ -27,6 +28,55 @@ if "embedding_cache" not in sys.modules:
     stub.embed = lambda *a, **kw: None
     stub.EmbeddingCache = object
     sys.modules["embedding_cache"] = stub
+
+
+@pytest.fixture(scope="module", autouse=True)
+def synthetic_v1_5_embeddings():
+    """Generate a minimal card_embeddings_v1_5.json for tests.
+
+    The real file is ~34MB, requires the nomic-embed model to generate,
+    and is not committed. These tests exercise only the --similar code
+    path (name normalization + cosine similarity), which works with any
+    consistent-dimension embeddings, so synthetic 3-dim vectors suffice.
+
+    Skip if a real file already exists -- don't clobber the user's data.
+    """
+    if EMBEDDINGS_FILE.exists():
+        yield
+        return
+
+    cards = json.loads((REPO_ROOT / "cards.json").read_text())
+    systems = [
+        "rws_traditional",
+        "thoth_crowley",
+        "jungian_psychological",
+        "modern_intuitive",
+        "combined",
+    ]
+    records = []
+    for card_idx, card in enumerate(cards):
+        for pos_idx, position in enumerate(["upright", "reversed"]):
+            for sys_idx, system in enumerate(systems):
+                # Deterministic, distinct 3-dim vectors per card+pos+system.
+                # Offsets just need to make each record unique.
+                vec = [
+                    float(card_idx + 1),
+                    float(pos_idx * 0.5 + 0.1),
+                    float(sys_idx * 0.25 + 0.1),
+                ]
+                records.append({
+                    "card_name": card["name"],
+                    "position": position,
+                    "interpretation_system": system,
+                    "text": f"{card['name']} {position} {system}",
+                    "embedding": vec,
+                })
+
+    EMBEDDINGS_FILE.write_text(json.dumps(records))
+    try:
+        yield
+    finally:
+        EMBEDDINGS_FILE.unlink()
 
 
 def _run_main(*argv):
