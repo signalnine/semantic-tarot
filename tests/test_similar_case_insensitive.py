@@ -135,7 +135,7 @@ def test_interactive_similar_is_case_insensitive(capsys):
     cards = json.loads((REPO_ROOT / "cards.json").read_text())
     interpretations = json.loads((REPO_ROOT / "interpretations.json").read_text())
 
-    inputs = iter(["similar the fool", "quit"])
+    inputs = iter(["similar the fool", "u", "quit"])
     real_input = builtins.input
     builtins.input = lambda _prompt="": next(inputs)
     try:

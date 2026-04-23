@@ -356,8 +356,10 @@ def interactive_mode(embeddings_data: List[Dict], cards: List[Dict], interpretat
                 if canonical is None:
                     print(f"Error: Card not found: {card_name}")
                     continue
+                pos_input = input("Position (u/r, default: u): ").strip().lower()
+                position = 'reversed' if pos_input == 'r' else 'upright'
                 try:
-                    results = find_similar_cards(canonical, 'upright', embeddings_data, top_k=5)
+                    results = find_similar_cards(canonical, position, embeddings_data, top_k=5)
                     print(format_results(results, cards, interpretations))
                 except ValueError as e:
                     print(f"Error: {e}")

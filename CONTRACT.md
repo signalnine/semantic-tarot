@@ -1,46 +1,35 @@
-# Contract: search_cards.py --similar must not require OPENAI_API_KEY
+# Contract: search_cards_cached interactive `similar` must honor reversed position
 
-## Bug
+## Bug (semantic-tarot-evl)
 
-`search_cards.py` unconditionally exits with an OPENAI_API_KEY error at
-the top of `main()`, even for `--similar <card>` invocations that operate
-purely on the pre-generated `card_embeddings.json` file and never call
-the OpenAI API.
-
-Current behavior (reproduced):
-
-```
-$ env -u OPENAI_API_KEY python3 search_cards.py --similar "The Fool"
-Error: OPENAI_API_KEY environment variable not set
-Please set it with: export OPENAI_API_KEY='your-key-here'
-$ echo $?
-1
-```
-
-`find_similar_cards()` consumes local embeddings only. The OpenAI client
-is only needed to embed a live query string (semantic search mode and
-interactive mode). Requiring the key for `--similar` blocks offline /
-read-only use of the tool.
+In `search_cards_cached.py` `interactive_mode`, the `similar <card>`
+command calls `find_similar_cards(canonical, 'upright', ...)` — position
+is hardcoded. The non-cached `search_cards.py::interactive_search`
+prompts for u/r and passes the chosen position. Users of the cached
+variant cannot explore cards similar to a reversed card in interactive
+mode.
 
 ## Fix
 
-Move the OPENAI_API_KEY check (and `OpenAI(...)` client instantiation)
-out of the unconditional preamble of `main()` and into the semantic
-search branch where the query embedding is actually generated. The
-`--similar` branch must not touch the OpenAI client at all.
+In cached interactive mode, after resolving the card name, prompt
+`Position (u/r, default: u):` (matching `search_cards.py` wording).
+Map `r` (case-insensitive) to `reversed`, anything else to `upright`,
+and pass that to `find_similar_cards`.
 
 ## Criteria
 
-- [x] `search_cards.main()` called with `["--similar", "The Fool"]`
-      and `OPENAI_API_KEY` unset exits 0 and prints at least one
-      similar card row.
-- [x] `search_cards.main()` called with
-      `["--similar", "The Fool", "--json", "--top", "3"]` and no API
-      key emits valid JSON (a non-empty list of dicts) on stdout.
-- [x] `search_cards.main()` called with `["transformation"]` (semantic
-      search) and no API key still exits non-zero with an error that
-      mentions `OPENAI_API_KEY`.
-- [x] `--similar` does not instantiate an OpenAI client: monkeypatching
-      `search_cards.OpenAI` to a sentinel that raises on construction
-      does not break `--similar`.
-- [x] Full existing test suite still passes (`pytest` exits 0).
+- [x] Typing `r` at the position prompt causes
+      `find_similar_cards` to be called with `position="reversed"`.
+      Verify: monkeypatch `input` and `find_similar_cards`; assert the
+      recorded position.
+- [x] Pressing Enter (empty) defaults to `upright`.
+      Verify: inject `""`; assert position `"upright"`.
+- [x] Typing `u` stays `upright`.
+      Verify: inject `"u"`; assert position `"upright"`.
+- [x] Uppercase `R` also selects `reversed` (case-insensitive).
+      Verify: inject `"R"`; assert position `"reversed"`.
+- [x] Unknown card path: `find_similar_cards` is not called and no
+      position prompt blocks the REPL.
+      Verify: run `similar Not A Card`; ensure no extra input consumed
+      and no call to the patched `find_similar_cards`.
+- [x] Existing tests still pass. Verify: `pytest` exits 0.
