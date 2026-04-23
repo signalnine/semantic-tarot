@@ -181,6 +181,22 @@ def search_cards(
     return similarities[:top_k]
 
 
+def resolve_card_name(name: str, cards: List[Dict]) -> Optional[str]:
+    """Return the canonical card name matching `name` case-insensitively.
+
+    Returns None if no card matches. Surrounding whitespace is ignored.
+    """
+    if name is None:
+        return None
+    needle = name.strip().lower()
+    if not needle:
+        return None
+    for card in cards:
+        if card["name"].lower() == needle:
+            return card["name"]
+    return None
+
+
 def find_similar_cards(
     card_name: str,
     position: str,
@@ -330,8 +346,12 @@ def interactive_mode(embeddings_data: List[Dict], cards: List[Dict], interpretat
             if query.lower().startswith('similar '):
                 # Similar card search
                 card_name = query[8:].strip()
+                canonical = resolve_card_name(card_name, cards)
+                if canonical is None:
+                    print(f"Error: Card not found: {card_name}")
+                    continue
                 try:
-                    results = find_similar_cards(card_name, 'upright', embeddings_data, top_k=5)
+                    results = find_similar_cards(canonical, 'upright', embeddings_data, top_k=5)
                     print(format_results(results, cards, interpretations))
                 except ValueError as e:
                     print(f"Error: {e}")
@@ -406,8 +426,12 @@ def main():
     # Similar card search
     if args.similar:
         position = 'reversed' if args.reversed else 'upright'
+        canonical = resolve_card_name(args.similar, cards)
+        if canonical is None:
+            print(f"Error: Card not found: {args.similar}", file=sys.stderr)
+            sys.exit(1)
         try:
-            results = find_similar_cards(args.similar, position, embeddings_data, top_k=args.top)
+            results = find_similar_cards(canonical, position, embeddings_data, top_k=args.top)
             print(format_results(results, cards, interpretations, args.ascii, format_type))
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)

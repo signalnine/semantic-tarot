@@ -1,36 +1,43 @@
-# Contract: Multi-card tarot readings must draw unique cards
+# Contract: search_cards_cached.py --similar must accept case-variant card names
 
 ## Bug
 
-`tarot.py`'s `draw_card()` uses `random.choice(tarot_deck)`, which draws
-*with replacement*. Every multi-card spread (three_card_reading,
-celtic_cross_reading, horseshoe_reading, relationship_reading) calls
-`draw_card()` in a loop, so the same card can appear two or more times
-in the same reading. A real tarot reading shuffles once and deals from a
-physical deck, so each card is unique within a spread.
+`search_cards_cached.py`'s `find_similar_cards()` compares card names with
+`card_data['card_name'] == card_name` (case-sensitive). Both entry points
+-- the `--similar` CLI flag and the interactive `similar <card>` command
+-- pass the user's input straight through. A lowercase or mixed-case
+query like `--similar "the fool"` raises `ValueError: Card not found:
+the fool (upright)` even though "The Fool" is in the deck.
+
+The non-cached `search_cards.py` avoids this by doing a case-insensitive
+lookup at the CLI layer (`c['name'].lower() == card_name.lower()`) and
+passing the canonical name to `find_similar_cards`. The cached version
+skips that step.
 
 ## Fix
 
-Add a helper that returns `n` distinct cards sampled without replacement
-from `tarot_deck`, and have the multi-card readings use it. Single-card
-entry points (`single_card_reading`, `yes_no_reading`, `daily_card`) are
-unaffected.
+Normalize the input at both entry points in `search_cards_cached.py`
+(CLI `--similar` and interactive `similar <cmd>`): look up the canonical
+card name case-insensitively before calling `find_similar_cards`. Emit a
+clear "card not found" error when no match exists. `find_similar_cards`
+itself remains unchanged so its contract (exact match on canonical name)
+is preserved.
 
 ## Criteria
 
-- [x] A helper `draw_unique_cards(n, allow_reversed=True)` returns a list
-      of `n` `(card, is_reversed)` tuples where every `card['name']` is
-      distinct. Verify: call with `n=10`, assert `len({c['name'] for c, _
-      in result}) == 10`.
-- [x] `draw_unique_cards` honors `allow_reversed=False`. Verify: call with
-      `n=10, allow_reversed=False` and assert every `is_reversed` is
-      `False`.
-- [x] Raises `ValueError` when `n` exceeds deck size. Verify: call with
-      `n=len(tarot_deck)+1` and expect `ValueError`.
-- [x] The three-, five-, seven-, and ten-card spreads use the helper so
-      their results contain unique card names. Verify: monkeypatch
-      `input` and `display_card`, run each reading, collect its
-      `cards_drawn`, assert all card names distinct.
-- [x] Single-card paths unchanged. Verify: `draw_card()` still returns a
-      single `(card, is_reversed)` tuple as before.
+- [x] `--similar "the fool"` succeeds and returns results for "The Fool".
+      Verify: invoke CLI with lowercase name, exit code 0, stdout contains
+      card names.
+- [x] `--similar "THE FOOL"` succeeds the same way (uppercase).
+      Verify: same as above with uppercase input.
+- [x] `--similar "  The Fool  "` succeeds (whitespace stripped).
+      Verify: same as above with padded input.
+- [x] `--similar "Not A Real Card"` fails with a clear error and non-zero
+      exit code. Verify: stderr mentions the card, exit code != 0.
+- [x] Interactive `similar the fool` succeeds (case-insensitive).
+      Verify: drive `interactive_mode` with a stub stdin, assert output
+      contains similar-card names instead of an error.
+- [x] `find_similar_cards()` itself is unchanged: passing a non-canonical
+      name still raises `ValueError`. Verify: call directly with lowercase
+      and expect `ValueError`.
 - [x] Full existing test suite still passes. Verify: `pytest` exits 0.
