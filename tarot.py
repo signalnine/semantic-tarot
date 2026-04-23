@@ -104,7 +104,11 @@ def search_card(card_name: str):
 
 def search_by_keyword(keyword: str):
     """Search for cards by keyword in their descriptions"""
-    keyword_lower = keyword.lower()
+    keyword_lower = keyword.strip().lower()
+    if not keyword_lower:
+        print("Please enter a keyword to search.")
+        return []
+
     matching_cards = []
 
     for card in tarot_deck:
