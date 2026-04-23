@@ -345,8 +345,8 @@ def display_search_results(
             meaning = card['desc'] if position == 'upright' else card['rdesc']
 
         # Show brief meaning
-        if show_art:
-            # Full meaning when showing art
+        if show_art or len(meaning) <= 100:
+            # Full meaning when showing art, or when it fits
             print(f"   Meaning: {meaning}")
         else:
             # Truncated meaning when not showing art
