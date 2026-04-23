@@ -539,17 +539,7 @@ def main():
         interactive_search()
         return
 
-    # Check for API key
-    api_key = os.getenv('OPENAI_API_KEY')
-    if not api_key:
-        print("Error: OPENAI_API_KEY environment variable not set")
-        print("Please set it with: export OPENAI_API_KEY='your-key-here'")
-        sys.exit(1)
-
-    # Initialize client
-    client = OpenAI(api_key=api_key)
-
-    # Load data
+    # Load data (purely local; no API key needed)
     try:
         embeddings_data = load_embeddings()
         cards_data = load_cards()
@@ -597,6 +587,14 @@ def main():
 
     # Handle semantic search mode
     elif args.query:
+        # Semantic search requires an OpenAI client to embed the query.
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("Error: OPENAI_API_KEY environment variable not set")
+            print("Please set it with: export OPENAI_API_KEY='your-key-here'")
+            sys.exit(1)
+        client = OpenAI(api_key=api_key)
+
         # Only show status message in human-readable mode
         if not output_format:
             print(f"Searching for: '{args.query}'...")

@@ -1,47 +1,46 @@
-# Contract: search_cards_cached.format_results text output must show card meanings
+# Contract: search_cards.py --similar must not require OPENAI_API_KEY
 
 ## Bug
 
-`format_results()` in `search_cards_cached.py` accepts `cards` and
-`interpretations` but never uses them to surface a card's meaning in
-the default text format. Running `python3 search_cards_cached.py
-"shadow"` yields only:
+`search_cards.py` unconditionally exits with an OPENAI_API_KEY error at
+the top of `main()`, even for `--similar <card>` invocations that operate
+purely on the pre-generated `card_embeddings.json` file and never call
+the OpenAI API.
+
+Current behavior (reproduced):
 
 ```
-1. CardName (UPRIGHT)
-   Similarity: 0.8234
+$ env -u OPENAI_API_KEY python3 search_cards.py --similar "The Fool"
+Error: OPENAI_API_KEY environment variable not set
+Please set it with: export OPENAI_API_KEY='your-key-here'
+$ echo $?
+1
 ```
 
-No meaning. `search_cards.py`'s `display_search_results` shows the
-meaning on each result, so the cached variant is a regression.
+`find_similar_cards()` consumes local embeddings only. The OpenAI client
+is only needed to embed a live query string (semantic search mode and
+interactive mode). Requiring the key for `--similar` blocks offline /
+read-only use of the tool.
 
 ## Fix
 
-In text format, print the card's basic meaning (`card['desc']` for
-upright, `card['rdesc']` for reversed) on a `Meaning:` line after
-`Similarity:`. Keep JSON/YAML output unchanged. Keep ASCII-art behavior
-unchanged (meaning appears before the art). A card missing from the
-`cards` list is skipped silently.
+Move the OPENAI_API_KEY check (and `OpenAI(...)` client instantiation)
+out of the unconditional preamble of `main()` and into the semantic
+search branch where the query embedding is actually generated. The
+`--similar` branch must not touch the OpenAI client at all.
 
 ## Criteria
 
-- [x] Text output for an upright result contains the card's `desc`.
-      Verify: call `format_results` with a known card, upright, and
-      assert the `desc` text appears in the output.
-- [x] Text output for a reversed result contains the card's `rdesc`.
-      Verify: call with reversed position; assert `rdesc` text appears.
-- [x] Meaning appears even when `show_ascii=False`.
-      Verify: both `show_ascii=True` and `show_ascii=False` include the
-      meaning in text mode.
-- [x] Meaning appears on a labelled `Meaning:` line.
-      Verify: output contains a line starting with `Meaning:`.
-- [x] Missing card in `cards` list does not crash and does not print
-      a stray meaning line.
-      Verify: pass a results entry whose name is not in `cards`; no
-      exception, no `Meaning:` line for that entry.
-- [x] JSON output is unchanged.
-      Verify: existing `test_json_output_unchanged` still passes.
-- [x] ASCII-art behavior is unchanged.
-      Verify: existing ASCII tests still pass; the meaning line appears
-      BEFORE the ASCII-art block when both are shown.
-- [x] Full existing test suite still passes. Verify: `pytest` exits 0.
+- [x] `search_cards.main()` called with `["--similar", "The Fool"]`
+      and `OPENAI_API_KEY` unset exits 0 and prints at least one
+      similar card row.
+- [x] `search_cards.main()` called with
+      `["--similar", "The Fool", "--json", "--top", "3"]` and no API
+      key emits valid JSON (a non-empty list of dicts) on stdout.
+- [x] `search_cards.main()` called with `["transformation"]` (semantic
+      search) and no API key still exits non-zero with an error that
+      mentions `OPENAI_API_KEY`.
+- [x] `--similar` does not instantiate an OpenAI client: monkeypatching
+      `search_cards.OpenAI` to a sentinel that raises on construction
+      does not break `--similar`.
+- [x] Full existing test suite still passes (`pytest` exits 0).
