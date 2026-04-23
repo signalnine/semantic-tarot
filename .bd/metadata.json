@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "semantic_tarot",
+  "project_id": "8aaa8b02-c3ef-44f9-b6b6-c40c7509cb39"
+}

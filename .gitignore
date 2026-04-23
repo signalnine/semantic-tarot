@@ -9,3 +9,5 @@ __pycache__/
 # Generated data files
 reading_history.json
 daily_card.json
+.dolt/
+*.db
