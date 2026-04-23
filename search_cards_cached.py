@@ -311,12 +311,18 @@ def format_results(
 
             # Find card data
             card = next((c for c in cards if c['name'] == card_name), None)
-            if card and show_ascii:
-                art_key = 'reversed' if position == 'reversed' else 'card'
-                art = card.get(art_key) or card.get('card', '')
-                if art:
-                    output_lines.append("")
-                    output_lines.append(art)
+            if card:
+                meaning_key = 'rdesc' if position == 'reversed' else 'desc'
+                meaning = card.get(meaning_key) or card.get('desc', '')
+                if meaning:
+                    output_lines.append(f"   Meaning: {meaning}")
+
+                if show_ascii:
+                    art_key = 'reversed' if position == 'reversed' else 'card'
+                    art = card.get(art_key) or card.get('card', '')
+                    if art:
+                        output_lines.append("")
+                        output_lines.append(art)
 
         return "\n".join(output_lines)
 

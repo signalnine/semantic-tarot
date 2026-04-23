@@ -1,46 +1,47 @@
-# Contract: tarot.py search_by_keyword must cover interpretation text
+# Contract: search_cards_cached.format_results text output must show card meanings
 
 ## Bug
 
-`tarot.search_by_keyword()` (menu option 9, "Search by keyword") only
-checks `card['name']`, `card['desc']`, and `card['rdesc']` from
-`cards.json`. Those are one-line blurbs. Central themes that live in
-`interpretations.json` -- "shadow" is the canonical example, appearing
-20+ times across the Jungian system but never in `cards.json` -- return
-"No cards found matching 'shadow'", which surprises anyone relying on
-the menu to browse by concept.
+`format_results()` in `search_cards_cached.py` accepts `cards` and
+`interpretations` but never uses them to surface a card's meaning in
+the default text format. Running `python3 search_cards_cached.py
+"shadow"` yields only:
 
-The menu advertises this as a general search tool and the README
-describes it as "Search through all card descriptions", so the intent
-is broader than the cards.json blurbs.
+```
+1. CardName (UPRIGHT)
+   Similarity: 0.8234
+```
+
+No meaning. `search_cards.py`'s `display_search_results` shows the
+meaning on each result, so the cached variant is a regression.
 
 ## Fix
 
-Extend `search_by_keyword` to also scan every interpretation system's
-upright and reversed text (case-insensitively). A card that matches in
-multiple places appears once. Existing name/desc/rdesc matches keep
-working. The empty-keyword guard from the previous fix (`tarot-fx5`)
-is preserved.
+In text format, print the card's basic meaning (`card['desc']` for
+upright, `card['rdesc']` for reversed) on a `Meaning:` line after
+`Similarity:`. Keep JSON/YAML output unchanged. Keep ASCII-art behavior
+unchanged (meaning appears before the art). A card missing from the
+`cards` list is skipped silently.
 
 ## Criteria
 
-- [x] `search_by_keyword("shadow")` returns a non-empty list.
-      Verify: call the function directly, assert result is truthy.
-- [x] `search_by_keyword("Fool")` still returns The Fool (name match).
-      Verify: result contains a card whose name is "The Fool".
-- [x] A keyword taken from `cards.json` desc still matches that card.
-      Verify: pick first card, use first word of its `desc`, assert the
-      card is in the results.
-- [x] Case-insensitive for interpretation matches: "shadow", "SHADOW",
-      and "ShAdOw" return the same set of cards.
-      Verify: compare sorted name lists from the three queries.
-- [x] Cards are not duplicated when the keyword matches in multiple
-      systems for the same card.
-      Verify: len(names) == len(set(names)).
-- [x] Nonsense keyword returns an empty list.
-      Verify: search for an obvious non-word, assert `== []`.
-- [x] Empty / whitespace-only keyword still returns [] without flooding
-      output (regression guard for the prior empty-keyword fix).
-      Verify: `search_by_keyword("")` and `search_by_keyword("   ")`
-      both return `[]`.
+- [x] Text output for an upright result contains the card's `desc`.
+      Verify: call `format_results` with a known card, upright, and
+      assert the `desc` text appears in the output.
+- [x] Text output for a reversed result contains the card's `rdesc`.
+      Verify: call with reversed position; assert `rdesc` text appears.
+- [x] Meaning appears even when `show_ascii=False`.
+      Verify: both `show_ascii=True` and `show_ascii=False` include the
+      meaning in text mode.
+- [x] Meaning appears on a labelled `Meaning:` line.
+      Verify: output contains a line starting with `Meaning:`.
+- [x] Missing card in `cards` list does not crash and does not print
+      a stray meaning line.
+      Verify: pass a results entry whose name is not in `cards`; no
+      exception, no `Meaning:` line for that entry.
+- [x] JSON output is unchanged.
+      Verify: existing `test_json_output_unchanged` still passes.
+- [x] ASCII-art behavior is unchanged.
+      Verify: existing ASCII tests still pass; the meaning line appears
+      BEFORE the ASCII-art block when both are shown.
 - [x] Full existing test suite still passes. Verify: `pytest` exits 0.

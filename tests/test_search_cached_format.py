@@ -72,3 +72,37 @@ def test_json_output_unchanged(cards_with_art):
     parsed = _json.loads(out)
     assert parsed == [{"card": "The Fool", "position": "upright",
                        "similarity": 0.9}]
+
+
+def test_text_output_shows_upright_meaning(cards_with_art):
+    results = [("The Fool", "upright", 0.9)]
+    out = format_results(results, cards_with_art, {},
+                         show_ascii=False, format_type="text")
+    assert "Meaning:" in out
+    assert "New beginnings" in out
+
+
+def test_text_output_shows_reversed_meaning(cards_with_art):
+    results = [("The Magician", "reversed", 0.8)]
+    out = format_results(results, cards_with_art, {},
+                         show_ascii=False, format_type="text")
+    assert "Meaning:" in out
+    assert "Manipulation" in out
+
+
+def test_meaning_shown_with_ascii_enabled(cards_with_art):
+    results = [("The Fool", "upright", 0.9)]
+    out = format_results(results, cards_with_art, {},
+                         show_ascii=True, format_type="text")
+    assert "New beginnings" in out
+    assert "UPRIGHT_FOOL_ART_MARKER" in out
+    # Meaning must appear before the art block.
+    assert out.index("New beginnings") < out.index("UPRIGHT_FOOL_ART_MARKER")
+
+
+def test_unknown_card_does_not_crash_or_inject_meaning(cards_with_art):
+    results = [("Not A Real Card", "upright", 0.5)]
+    out = format_results(results, cards_with_art, {},
+                         show_ascii=False, format_type="text")
+    assert "Meaning:" not in out
+    assert "Not A Real Card" in out
