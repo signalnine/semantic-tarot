@@ -342,11 +342,13 @@ def view_reading_history():
 
         for i, reading in enumerate(reversed(history[-10:]), 1):  # Show last 10
             print(f"\n{i}. {reading['timestamp']} - {reading['spread'].upper()} spread")
-            print("   Cards:", end=" ")
-            for card_name, is_reversed in reading['cards']:
-                rev_marker = " (R)" if is_reversed else ""
-                print(f"{card_name}{rev_marker}", end=", ")
-            print()
+            card_parts = [
+                f"{card_name}{' (R)' if is_reversed else ''}"
+                for card_name, is_reversed in reading['cards']
+            ]
+            print(f"   Cards: {', '.join(card_parts)}")
+            if 'answer' in reading:
+                print(f"   Answer: {reading['answer']}")
 
         print(f"\nShowing last {min(len(history), 10)} of {len(history)} total readings.")
     except Exception as e:
