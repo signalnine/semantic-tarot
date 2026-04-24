@@ -132,6 +132,9 @@ def search_cards(
     Returns:
         List of (card_name, position, similarity_score) tuples
     """
+    if top_k < 0:
+        raise ValueError(f"top_k must be non-negative, got {top_k}")
+
     # Get query embedding
     query_embedding = get_query_embedding(client, query)
 
@@ -186,6 +189,9 @@ def find_similar_cards(
     Returns:
         List of (card_name, position, similarity_score) tuples
     """
+    if top_k < 0:
+        raise ValueError(f"top_k must be non-negative, got {top_k}")
+
     # Determine which system to use (default to 'combined' if not specified)
     target_system = system_filter if system_filter else 'combined'
 
@@ -454,6 +460,19 @@ def interactive_search():
                 print(f"✗ Error: {e}")
 
 
+def _non_negative_int(value):
+    """argparse type that rejects negative integers (used for --top)."""
+    try:
+        ivalue = int(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"invalid int value: {value!r}")
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(
+            f"--top must be non-negative, got {ivalue}"
+        )
+    return ivalue
+
+
 def main():
     """Main execution with CLI argument support"""
     parser = argparse.ArgumentParser(
@@ -491,7 +510,7 @@ def main():
     )
     parser.add_argument(
         '--top', '-k',
-        type=int,
+        type=_non_negative_int,
         default=1,
         metavar='N',
         help='Number of results to return (default: 1)'

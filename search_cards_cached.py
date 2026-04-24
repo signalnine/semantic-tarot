@@ -151,6 +151,9 @@ def search_cards(
     Returns:
         List of (card_name, position, similarity_score) tuples
     """
+    if top_k < 0:
+        raise ValueError(f"top_k must be non-negative, got {top_k}")
+
     # Get query embedding (cached if seen before!)
     query_embedding = get_query_embedding(query, model)
 
@@ -219,6 +222,9 @@ def find_similar_cards(
     Returns:
         List of (card_name, position, similarity_score) tuples
     """
+    if top_k < 0:
+        raise ValueError(f"top_k must be non-negative, got {top_k}")
+
     # Determine which system to use
     target_system = system_filter if system_filter else 'combined'
 
@@ -375,6 +381,19 @@ def interactive_mode(embeddings_data: List[Dict], cards: List[Dict], interpretat
             print(f"Error: {e}")
 
 
+def _non_negative_int(value):
+    """argparse type that rejects negative integers (used for --top)."""
+    try:
+        ivalue = int(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"invalid int value: {value!r}")
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(
+            f"--top must be non-negative, got {ivalue}"
+        )
+    return ivalue
+
+
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
@@ -386,7 +405,7 @@ def main():
     parser.add_argument('query', nargs='?', help='Search query')
     parser.add_argument('--similar', metavar='CARD', help='Find cards similar to this card')
     parser.add_argument('--reversed', action='store_true', help='Use reversed position for similarity search')
-    parser.add_argument('--top', type=int, default=5, help='Number of results to return (default: 5)')
+    parser.add_argument('--top', type=_non_negative_int, default=5, help='Number of results to return (default: 5)')
     parser.add_argument('--ascii', '--art', action='store_true', help='Show ASCII art for cards')
     parser.add_argument('--json', action='store_true', help='Output results as JSON')
     parser.add_argument('--yaml', action='store_true', help='Output results as YAML')
