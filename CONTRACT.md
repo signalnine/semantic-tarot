@@ -1,41 +1,31 @@
-# Contract: view_reading_history must surface yes_no answer
+# Contract: search_cards.py --similar must accept whitespace-padded card names
 
-## Bug
+## Bug (semantic-tarot-dxd)
 
-`yes_no_reading()` returns a dict with an `answer` field ("YES" or
-"NO"), and `save_reading()` persists it to `reading_history.json`.
-`view_reading_history()` iterates over saved entries but only prints
-the spread name and the list of cards -- the `answer` field is never
-read, so users viewing their history cannot see whether a saved
-yes/no reading answered YES or NO.
-
-Additionally, the per-reading card list ends with a trailing `", "`
-before the newline because the list is printed with
-`print(f"{card_name}{rev_marker}", end=", ")` for every card
-unconditionally.
-
-Current output for a saved yes_no reading:
-
-```
-1. 2025-01-01 12:00:00 - YES_NO spread
-   Cards: The Fool (R),
-```
+`search_cards.py --similar` matches card names case-insensitively
+(`c['name'].lower() == args.similar.lower()`) but does not strip
+surrounding whitespace. Passing `--similar "  The Fool  "` fails with
+`✗ Card not found:   The Fool  `. The cached variant
+(`search_cards_cached.py --similar`) and `search_cards.py`'s own
+interactive `/similar` command both strip whitespace before matching,
+so the CLI `--similar` flag is the odd one out.
 
 ## Fix
 
-1. When rendering a saved reading in `view_reading_history()`, if the
-   entry has an `answer` key (i.e. yes_no readings), print the
-   answer.
-2. Replace the `end=", "` print loop with a single joined string so
-   the last card does not get a dangling comma.
+In `search_cards.py::main`, strip `args.similar` before the
+case-insensitive lookup so `"  The Fool  "`, `"The Fool  "`, and
+`"  The Fool"` all resolve to `The Fool`. Use the stripped value when
+constructing the "Card not found" error message as well, so feedback
+matches the attempted lookup.
 
 ## Criteria
 
-- [x] `view_reading_history()` output for a saved yes_no reading
-      contains the string `YES` or `NO` (matching the saved answer).
-- [x] `view_reading_history()` output for any reading ends each
-      reading's card list with the last card name (plus optional
-      `(R)`), with no trailing comma/space before the newline.
-- [x] Readings without an `answer` key (three_card, celtic_cross,
-      etc.) still render correctly and do not mention YES/NO.
-- [x] Full existing test suite still passes (`pytest` exits 0).
+- [x] `python3 search_cards.py --similar "  The Fool  " --top 3` exits 0
+      and prints results (UPRIGHT/REVERSED lines). Verify via a new
+      test in `tests/` that runs `search_cards.main()` with whitespace-
+      padded names and asserts success + results.
+- [x] Leading-only and trailing-only whitespace also resolve to the
+      canonical card. Verify with parametrized test.
+- [x] Unknown card names still fail with a non-zero exit code and a
+      message that names the card. Verify via test.
+- [x] Existing tests still pass. Verify: `pytest` exits 0.

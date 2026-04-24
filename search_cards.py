@@ -550,15 +550,19 @@ def main():
 
     # Handle --similar mode
     if args.similar:
+        # Normalize user input: strip surrounding whitespace before the
+        # case-insensitive lookup so `--similar "  The Fool  "` resolves.
+        similar_query = args.similar.strip()
+
         # Find the card
         card = None
         for c in cards_data:
-            if c['name'].lower() == args.similar.lower():
+            if c['name'].lower() == similar_query.lower():
                 card = c
                 break
 
         if not card:
-            print(f"✗ Card not found: {args.similar}")
+            print(f"✗ Card not found: {similar_query}")
             print("\nAvailable cards:")
             for c in cards_data[:10]:  # Show first 10 as examples
                 print(f"  - {c['name']}")

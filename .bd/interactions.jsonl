@@ -17,3 +17,4 @@
 {"id":"int-056e333f","kind":"field_change","created_at":"2026-04-23T21:33:11.343753435Z","actor":"Gabe Ortiz","issue_id":"tarot-bab","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-94ecddbc","kind":"field_change","created_at":"2026-04-24T15:27:34.468865497Z","actor":"Gabe Ortiz","issue_id":"tarot-ksn","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
 {"id":"int-0deb895d","kind":"field_change","created_at":"2026-04-24T15:29:26.967379012Z","actor":"Gabe Ortiz","issue_id":"tarot-ksn","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Fix implemented in view_reading_history; 4 new tests cover the YES/NO answer display and trailing-comma behavior"}}
+{"id":"int-de2bc0de","kind":"field_change","created_at":"2026-04-24T16:01:01.192172937Z","actor":"Gabe Ortiz","issue_id":"semantic-tarot-dxd","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
