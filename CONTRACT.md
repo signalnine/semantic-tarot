@@ -1,37 +1,41 @@
-# Contract: tarot.compare_interpretations must echo attempted card name on miss
+# Contract: search_cards.py interactive mode must not require OPENAI_API_KEY for /similar
 
-## Bug (tarot-6ka)
+## Bug (tarot-4lg)
 
-`tarot.py::compare_interpretations` strips the user's input and does
-a case-insensitive lookup, but when no card matches it prints a bare
-`"✗ Card not found."` with no echo of what was attempted. This is
-inconsistent with:
+`search_cards.py::interactive_search` (line 372) bails out at startup
+with "Error: OPENAI_API_KEY environment variable not set" if the
+environment variable is unset. But the in-session `/similar <card>`
+command operates entirely on pre-generated local embeddings -- it never
+calls the OpenAI API.
 
-- `tarot.search_card` (fixed in 2f069d4) -- prints the stripped name
-- `search_cards.py --similar` (fixed in e86e56f) -- prints the stripped name
-- `search_cards.py` interactive `/similar` -- prints the entered name
-
-A user running menu option 15 ("Compare all interpretations for a card")
-and mistyping a name has no signal of what was actually searched, which
-makes typos invisible.
+This is the same bug pattern that was fixed for CLI mode in commit
+1978891 (`fix(search_cards): --similar no longer requires OPENAI_API_KEY`).
+The interactive equivalent was missed: a user who just wants to browse
+similarities locally must still have an API key, or use the CLI form.
 
 ## Fix
 
-In `tarot.py::compare_interpretations`, when the lookup fails, include
-the stripped attempted name in the "Card not found" message. Match the
-phrasing used elsewhere in the file: `f"✗ Card not found: {needle}"`.
+Defer the OpenAI client construction until a semantic search is actually
+attempted. `/similar` should run without an API key. Semantic search
+(non-`/` queries) should error gracefully when the key is missing,
+without exiting the interactive session.
 
 ## Criteria
 
-- [x] `compare_interpretations` with an unknown card name prints a
-      message containing the stripped attempted name. Verify via test
-      that monkeypatches `builtins.input` to return an unknown name and
-      asserts the printed output contains that name.
-- [x] Whitespace is stripped before echoing -- padding does not appear
-      in the output. Verify via test with `"   Bogus Card   "` input.
-- [x] When the card IS found, no "Card not found" line is printed.
-      Verify via test with `"The Fool"` input.
-- [x] Case-insensitive matching still works (e.g. `"the fool"` finds
-      The Fool). Verify via test.
-- [x] Existing tests still pass. Verify: `pytest` exits 0 with the
-      same pass count + 1 (new tests).
+- [x] `interactive_search` starts and accepts input even when
+      `OPENAI_API_KEY` is unset. Verify via test that patches input to
+      run `/similar The Fool`, `u`, then `/quit` and asserts the session
+      runs to completion without exiting early.
+- [x] `/similar <card>` produces results without an API key. Verify the
+      output contains `UPRIGHT` (or `REVERSED`) for at least one card.
+- [x] `/similar` does not construct an `OpenAI` client even when a key
+      is set. Verify by monkeypatching `OpenAI` to raise and confirming
+      `/similar` still works.
+- [x] A semantic (non-`/`) query without an API key prints an error
+      message containing `OPENAI_API_KEY` but does NOT exit the
+      interactive loop -- the user can still issue `/similar` or
+      `/quit` afterward. Verify via test.
+- [x] A semantic query with an API key set still works (sanity check
+      via existing unit tests; do not regress).
+- [x] All existing tests still pass: `pytest` exits 0 with current
+      pass count + new tests.

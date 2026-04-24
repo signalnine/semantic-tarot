@@ -369,16 +369,14 @@ def display_search_results(
 
 
 def interactive_search():
-    """Interactive search interface"""
-    # Check for API key
-    api_key = os.getenv('OPENAI_API_KEY')
-    if not api_key:
-        print("Error: OPENAI_API_KEY environment variable not set")
-        print("Please set it with: export OPENAI_API_KEY='your-key-here'")
-        return
+    """Interactive search interface.
 
-    # Initialize client
-    client = OpenAI(api_key=api_key)
+    The OpenAI client is built lazily: only semantic queries hit the
+    API, so `/similar` works without OPENAI_API_KEY (it uses local
+    pre-generated embeddings). A semantic query without a key prints
+    an error and returns to the prompt instead of exiting the loop.
+    """
+    client = None  # built on first semantic query that needs it
 
     # Load data
     print("Loading embeddings and card data...")
@@ -445,7 +443,22 @@ def interactive_search():
                 print(f"✗ Error: {e}")
 
         else:
-            # Normal semantic search
+            # Normal semantic search -- requires the OpenAI API.
+            if client is None:
+                api_key = os.getenv('OPENAI_API_KEY')
+                if not api_key:
+                    print(
+                        "Error: OPENAI_API_KEY environment variable not set"
+                    )
+                    print(
+                        "Set it with: export OPENAI_API_KEY='your-key-here'"
+                    )
+                    print(
+                        "(/similar still works without a key; it uses local embeddings.)"
+                    )
+                    continue
+                client = OpenAI(api_key=api_key)
+
             print(f"\nSearching for: '{query}'...")
 
             try:
