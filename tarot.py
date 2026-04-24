@@ -94,12 +94,18 @@ def display_card(card: Dict, is_reversed: bool = False, show_all_interpretations
     print(f"{'═' * 50}\n")
 
 def search_card(card_name: str):
-    """Search for a card by name"""
+    """Search for a card by name.
+
+    Surrounding whitespace is stripped before the case-insensitive
+    lookup so callers don't have to remember to sanitize input. This
+    matches `compare_interpretations` and `search_cards.py --similar`.
+    """
+    needle = card_name.strip()
     for card in tarot_deck:
-        if card['name'].lower() == card_name.lower():
+        if card['name'].lower() == needle.lower():
             display_card(card)
             return card
-    print("Card not found.")
+    print(f"Card not found: {needle}")
     return None
 
 def search_by_keyword(keyword: str):
