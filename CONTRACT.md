@@ -1,38 +1,37 @@
-# Contract: tarot.search_card must strip whitespace and echo the attempted name
+# Contract: tarot.compare_interpretations must echo attempted card name on miss
 
-## Bug (semantic-tarot-teq)
+## Bug (tarot-6ka)
 
-`tarot.py::search_card` does a case-insensitive name comparison
-(`card['name'].lower() == card_name.lower()`) but does not strip
-surrounding whitespace. Calling `search_card("  The Fool  ")` fails
-with a generic `Card not found.` message that does not echo the
-attempted name.
+`tarot.py::compare_interpretations` strips the user's input and does
+a case-insensitive lookup, but when no card matches it prints a bare
+`"✗ Card not found."` with no echo of what was attempted. This is
+inconsistent with:
 
-This mirrors the (closed) `semantic-tarot-dxd` / `-n7u` pattern that
-was fixed for `search_cards.py --similar`. The in-repo callers in
-`main()` happen to strip before calling, but the function itself is
-inconsistent with `compare_interpretations()` (which strips) and with
-the `--similar` CLI (which now strips).
+- `tarot.search_card` (fixed in 2f069d4) -- prints the stripped name
+- `search_cards.py --similar` (fixed in e86e56f) -- prints the stripped name
+- `search_cards.py` interactive `/similar` -- prints the entered name
+
+A user running menu option 15 ("Compare all interpretations for a card")
+and mistyping a name has no signal of what was actually searched, which
+makes typos invisible.
 
 ## Fix
 
-In `tarot.py::search_card`, strip `card_name` before the
-case-insensitive lookup so `"  The Fool  "`, `"The Fool  "`, and
-`"  The Fool"` all resolve to `The Fool`. Include the stripped name
-in the "Card not found" message so users can see what the program
-actually searched for.
+In `tarot.py::compare_interpretations`, when the lookup fails, include
+the stripped attempted name in the "Card not found" message. Match the
+phrasing used elsewhere in the file: `f"✗ Card not found: {needle}"`.
 
 ## Criteria
 
-- [x] `search_card("  The Fool  ")` returns a card dict (not None)
-      and displays the card. Verify via a new test that calls
-      `tarot.search_card` with whitespace-padded names and asserts
-      the return value is non-None with `name == "The Fool"`.
-- [x] Leading-only and trailing-only whitespace also resolve to the
-      canonical card. Verify with parametrized test.
-- [x] Unknown card names still return None and print a message that
-      includes the stripped attempted name. Verify via test with
-      `capsys`.
-- [x] Case-insensitive matching still works
-      (`search_card("the fool")` returns a card). Verify via test.
-- [x] Existing tests still pass. Verify: `pytest` exits 0.
+- [x] `compare_interpretations` with an unknown card name prints a
+      message containing the stripped attempted name. Verify via test
+      that monkeypatches `builtins.input` to return an unknown name and
+      asserts the printed output contains that name.
+- [x] Whitespace is stripped before echoing -- padding does not appear
+      in the output. Verify via test with `"   Bogus Card   "` input.
+- [x] When the card IS found, no "Card not found" line is printed.
+      Verify via test with `"The Fool"` input.
+- [x] Case-insensitive matching still works (e.g. `"the fool"` finds
+      The Fool). Verify via test.
+- [x] Existing tests still pass. Verify: `pytest` exits 0 with the
+      same pass count + 1 (new tests).

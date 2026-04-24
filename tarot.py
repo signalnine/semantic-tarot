@@ -493,7 +493,7 @@ def compare_interpretations():
             break
 
     if not card:
-        print("\n✗ Card not found.")
+        print(f"\n✗ Card not found: {card_name}")
         return
 
     # Ask for position
