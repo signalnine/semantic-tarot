@@ -274,7 +274,8 @@ def format_results(
     cards: List[Dict],
     interpretations: Dict,
     show_ascii: bool = False,
-    format_type: str = 'text'
+    format_type: str = 'text',
+    system: str = 'combined'
 ) -> str:
     """
     Format search results for display.
@@ -285,6 +286,8 @@ def format_results(
         interpretations: Interpretation data
         show_ascii: Whether to show ASCII art
         format_type: Output format ('text', 'json', 'yaml')
+        system: Interpretation system; when not 'combined', the meaning
+            shown is taken from interpretations.json for that system
 
     Returns:
         Formatted string
@@ -318,8 +321,14 @@ def format_results(
             # Find card data
             card = next((c for c in cards if c['name'] == card_name), None)
             if card:
-                meaning_key = 'rdesc' if position == 'reversed' else 'desc'
-                meaning = card.get(meaning_key) or card.get('desc', '')
+                meaning = None
+                if system != 'combined' and interpretations:
+                    card_interp = interpretations.get(card_name)
+                    if card_interp and system in card_interp:
+                        meaning = card_interp[system].get(position)
+                if not meaning:
+                    meaning_key = 'rdesc' if position == 'reversed' else 'desc'
+                    meaning = card.get(meaning_key) or card.get('desc', '')
                 if meaning:
                     output_lines.append(f"   Meaning: {meaning}")
 

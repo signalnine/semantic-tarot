@@ -524,9 +524,9 @@ def main():
     parser.add_argument(
         '--top', '-k',
         type=_non_negative_int,
-        default=1,
+        default=5,
         metavar='N',
-        help='Number of results to return (default: 1)'
+        help='Number of results to return (default: 5)'
     )
     parser.add_argument(
         '--interactive', '-i',
