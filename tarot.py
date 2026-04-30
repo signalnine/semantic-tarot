@@ -308,17 +308,37 @@ def relationship_reading():
 
     return {"spread": "relationship", "cards": cards_drawn}
 
+def _load_history_or_recover():
+    """Read HISTORY_FILE; if it's corrupt, back it up and return an empty list.
+
+    Returns the parsed list, or [] if the file is missing/corrupt. A corrupt
+    file is renamed to <HISTORY_FILE>.bak.<timestamp> so the user's bad data
+    is preserved while subsequent saves can proceed against a fresh history.
+    """
+    if not os.path.exists(HISTORY_FILE):
+        return []
+    try:
+        with open(HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+    except (json.JSONDecodeError, ValueError) as e:
+        backup = f"{HISTORY_FILE}.bak.{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        os.rename(HISTORY_FILE, backup)
+        print(f"\n⚠ Corrupt history file detected ({e}); backed up to {backup}")
+        return []
+    if not isinstance(history, list):
+        backup = f"{HISTORY_FILE}.bak.{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        os.rename(HISTORY_FILE, backup)
+        print(f"\n⚠ History file was not a list; backed up to {backup}")
+        return []
+    return history
+
+
 def save_reading(reading_data: Dict):
     """Save a reading to history"""
     reading_data['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        if os.path.exists(HISTORY_FILE):
-            with open(HISTORY_FILE, 'r') as f:
-                history = json.load(f)
-        else:
-            history = []
-
+        history = _load_history_or_recover()
         history.append(reading_data)
 
         with open(HISTORY_FILE, 'w') as f:
@@ -337,28 +357,40 @@ def view_reading_history():
     try:
         with open(HISTORY_FILE, 'r') as f:
             history = json.load(f)
+    except Exception as e:
+        print(f"\n✗ Error loading history: {e}")
+        return
 
-        if not history:
-            print("\nNo readings in history.")
-            return
+    if not history:
+        print("\nNo readings in history.")
+        return
 
-        print("\n" + "═" * 50)
-        print("READING HISTORY")
-        print("═" * 50)
+    print("\n" + "═" * 50)
+    print("READING HISTORY")
+    print("═" * 50)
 
-        for i, reading in enumerate(reversed(history[-10:]), 1):  # Show last 10
-            print(f"\n{i}. {reading['timestamp']} - {reading['spread'].upper()} spread")
+    rendered = 0
+    skipped = 0
+    for i, reading in enumerate(reversed(history[-10:]), 1):
+        try:
+            timestamp = reading['timestamp']
+            spread = reading['spread']
+            cards = reading['cards']
             card_parts = [
                 f"{card_name}{' (R)' if is_reversed else ''}"
-                for card_name, is_reversed in reading['cards']
+                for card_name, is_reversed in cards
             ]
+            print(f"\n{i}. {timestamp} - {spread.upper()} spread")
             print(f"   Cards: {', '.join(card_parts)}")
             if 'answer' in reading:
                 print(f"   Answer: {reading['answer']}")
+            rendered += 1
+        except (KeyError, TypeError, ValueError) as e:
+            print(f"\n{i}. [skipped malformed entry: {e}]")
+            skipped += 1
 
-        print(f"\nShowing last {min(len(history), 10)} of {len(history)} total readings.")
-    except Exception as e:
-        print(f"\n✗ Error loading history: {e}")
+    suffix = f" ({skipped} skipped)" if skipped else ""
+    print(f"\nShowing last {min(len(history), 10)} of {len(history)} total readings.{suffix}")
 
 def daily_card():
     """Get a card for the day (same card per day)"""
