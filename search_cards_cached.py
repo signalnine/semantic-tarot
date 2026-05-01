@@ -342,7 +342,13 @@ def format_results(
         return "\n".join(output_lines)
 
 
-def interactive_mode(embeddings_data: List[Dict], cards: List[Dict], interpretations: Dict, model: str):
+def interactive_mode(
+    embeddings_data: List[Dict],
+    cards: List[Dict],
+    interpretations: Dict,
+    model: str,
+    system: str = 'combined',
+):
     """Run interactive search mode"""
     print("\n" + "=" * 70)
     print("INTERACTIVE TAROT SEARCH (with embedding-cache)")
@@ -374,14 +380,20 @@ def interactive_mode(embeddings_data: List[Dict], cards: List[Dict], interpretat
                 pos_input = input("Position (u/r, default: u): ").strip().lower()
                 position = 'reversed' if pos_input == 'r' else 'upright'
                 try:
-                    results = find_similar_cards(canonical, position, embeddings_data, top_k=5)
-                    print(format_results(results, cards, interpretations))
+                    results = find_similar_cards(
+                        canonical, position, embeddings_data,
+                        top_k=5, system_filter=system,
+                    )
+                    print(format_results(results, cards, interpretations, system=system))
                 except ValueError as e:
                     print(f"Error: {e}")
             else:
                 # Semantic search
-                results = search_cards(query, embeddings_data, model, top_k=5)
-                print(format_results(results, cards, interpretations))
+                results = search_cards(
+                    query, embeddings_data, model,
+                    top_k=5, system_filter=system,
+                )
+                print(format_results(results, cards, interpretations, system=system))
 
         except KeyboardInterrupt:
             print("\n\nGoodbye! ✨")
@@ -425,6 +437,13 @@ def main():
         default='v1.5',
         help='Embedding model to use (default: v1.5)'
     )
+    parser.add_argument(
+        '--system',
+        choices=['rws_traditional', 'thoth_crowley', 'jungian_psychological', 'modern_intuitive', 'combined'],
+        default='combined',
+        metavar='SYSTEM',
+        help='Filter by interpretation system: rws_traditional, thoth_crowley, jungian_psychological, modern_intuitive, combined (default: combined)'
+    )
 
     args = parser.parse_args()
 
@@ -456,7 +475,7 @@ def main():
 
     # Interactive mode
     if args.interactive:
-        interactive_mode(embeddings_data, cards, interpretations, model)
+        interactive_mode(embeddings_data, cards, interpretations, model, system=args.system)
         return
 
     # Similar card search
@@ -467,8 +486,11 @@ def main():
             print(f"Error: Card not found: {args.similar}", file=sys.stderr)
             sys.exit(1)
         try:
-            results = find_similar_cards(canonical, position, embeddings_data, top_k=args.top)
-            print(format_results(results, cards, interpretations, args.ascii, format_type))
+            results = find_similar_cards(
+                canonical, position, embeddings_data,
+                top_k=args.top, system_filter=args.system,
+            )
+            print(format_results(results, cards, interpretations, args.ascii, format_type, system=args.system))
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -479,8 +501,11 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    results = search_cards(args.query, embeddings_data, model, top_k=args.top)
-    print(format_results(results, cards, interpretations, args.ascii, format_type))
+    results = search_cards(
+        args.query, embeddings_data, model,
+        top_k=args.top, system_filter=args.system,
+    )
+    print(format_results(results, cards, interpretations, args.ascii, format_type, system=args.system))
 
 
 if __name__ == '__main__':

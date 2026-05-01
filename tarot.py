@@ -4,19 +4,24 @@ import os
 from datetime import datetime
 from typing import List, Dict, Optional
 
+# Resolve data file paths relative to this script so tarot.py works when
+# imported or run from any working directory, not just the repo root.
+HERE = os.path.dirname(os.path.abspath(__file__))
+CARDS_FILE = os.path.join(HERE, 'cards.json')
+INTERPRETATIONS_FILE = os.path.join(HERE, 'interpretations.json')
+HISTORY_FILE = os.path.join(HERE, 'reading_history.json')
+DAILY_CARD_FILE = os.path.join(HERE, 'daily_card.json')
+
 # Load JSON files
-with open('cards.json') as file:
+with open(CARDS_FILE) as file:
     tarot_deck = json.load(file)
 
 # Load interpretation systems
 try:
-    with open('interpretations.json') as file:
+    with open(INTERPRETATIONS_FILE) as file:
         interpretations_db = json.load(file)
 except FileNotFoundError:
     interpretations_db = {}
-
-HISTORY_FILE = 'reading_history.json'
-DAILY_CARD_FILE = 'daily_card.json'
 
 # Interpretation systems available
 INTERPRETATION_SYSTEMS = {
