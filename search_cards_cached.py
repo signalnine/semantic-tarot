@@ -36,9 +36,6 @@ import argparse
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 
-# Import our new embedding cache!
-from embedding_cache import embed
-
 try:
     import yaml
     YAML_AVAILABLE = True
@@ -342,6 +339,12 @@ def format_results(
         return "\n".join(output_lines)
 
 
+VALID_SYSTEMS = (
+    'rws_traditional', 'thoth_crowley', 'jungian_psychological',
+    'modern_intuitive', 'combined',
+)
+
+
 def interactive_mode(
     embeddings_data: List[Dict],
     cards: List[Dict],
@@ -349,14 +352,30 @@ def interactive_mode(
     model: str,
     system: str = 'combined',
 ):
-    """Run interactive search mode"""
+    """Run interactive search mode.
+
+    `system`, top_k and ASCII-art display can be changed mid-session via
+    /system, /top, and /art commands. The bare 'similar' or '/similar'
+    forms (no card name) are rejected instead of being routed to
+    semantic search.
+    """
+    current_system = system if system in VALID_SYSTEMS else 'combined'
+    current_top_k = 5
+    current_show_art = False
+
     print("\n" + "=" * 70)
     print("INTERACTIVE TAROT SEARCH (with embedding-cache)")
     print("=" * 70)
     print("\nCommands:")
-    print("  <query>          - Search for cards matching a query")
-    print("  similar <card>   - Find similar cards")
-    print("  quit/exit        - Exit interactive mode")
+    print("  <query>            - Search for cards matching a query")
+    print("  similar <card>     - Find similar cards")
+    print("  /system <name>     - Set interpretation system")
+    print("                       (rws_traditional, thoth_crowley,")
+    print("                        jungian_psychological, modern_intuitive,")
+    print("                        combined)")
+    print("  /top <n>           - Set number of results (default 5)")
+    print("  /art on|off        - Toggle ASCII art (default off)")
+    print("  quit/exit          - Exit interactive mode")
     print()
 
     while True:
@@ -366,34 +385,100 @@ def interactive_mode(
             if not query:
                 continue
 
-            if query.lower() in ['quit', 'exit', 'q']:
+            lower = query.lower()
+
+            if lower in ['quit', 'exit', 'q', '/quit', '/exit', '/q']:
                 print("\nGoodbye! ✨")
                 break
 
-            if query.lower().startswith('similar '):
-                # Similar card search
-                card_name = query[8:].strip()
-                canonical = resolve_card_name(card_name, cards)
+            # /system <name>
+            if lower.startswith('/system'):
+                parts = query.split(None, 1)
+                if len(parts) < 2 or not parts[1].strip():
+                    print(f"Current system: {current_system}")
+                    print("Usage: /system <name>. Choices: " + ", ".join(VALID_SYSTEMS))
+                    continue
+                requested = parts[1].strip()
+                if requested not in VALID_SYSTEMS:
+                    print(f"Error: unknown system: {requested}")
+                    print("Choices: " + ", ".join(VALID_SYSTEMS))
+                    continue
+                current_system = requested
+                print(f"System set to: {current_system}")
+                continue
+
+            # /top <n>
+            if lower.startswith('/top'):
+                parts = query.split(None, 1)
+                if len(parts) < 2:
+                    print(f"Current top: {current_top_k}")
+                    print("Usage: /top <n>")
+                    continue
+                try:
+                    n = int(parts[1].strip())
+                    if n < 0:
+                        raise ValueError
+                except ValueError:
+                    print(f"Error: /top expects a non-negative integer, got: {parts[1]!r}")
+                    continue
+                current_top_k = n
+                print(f"Top set to: {current_top_k}")
+                continue
+
+            # /art on|off
+            if lower.startswith('/art'):
+                parts = query.split(None, 1)
+                if len(parts) < 2:
+                    current_show_art = not current_show_art
+                else:
+                    arg = parts[1].strip().lower()
+                    if arg in ('on', 'true', '1', 'yes'):
+                        current_show_art = True
+                    elif arg in ('off', 'false', '0', 'no'):
+                        current_show_art = False
+                    else:
+                        print(f"Error: /art expects on or off, got: {arg!r}")
+                        continue
+                print(f"Art display: {'on' if current_show_art else 'off'}")
+                continue
+
+            # similar <card> or /similar <card>
+            if lower == 'similar' or lower == '/similar' or \
+                    lower.startswith('similar ') or lower.startswith('/similar '):
+                # Strip the verb and any trailing whitespace.
+                if lower.startswith('/'):
+                    rest = query[len('/similar'):].strip()
+                else:
+                    rest = query[len('similar'):].strip()
+                if not rest:
+                    print("Error: similar requires a card name. Usage: similar <card name>")
+                    continue
+                canonical = resolve_card_name(rest, cards)
                 if canonical is None:
-                    print(f"Error: Card not found: {card_name}")
+                    print(f"Error: Card not found: {rest}")
                     continue
                 pos_input = input("Position (u/r, default: u): ").strip().lower()
                 position = 'reversed' if pos_input == 'r' else 'upright'
                 try:
                     results = find_similar_cards(
                         canonical, position, embeddings_data,
-                        top_k=5, system_filter=system,
+                        top_k=current_top_k, system_filter=current_system,
                     )
-                    print(format_results(results, cards, interpretations, system=system))
+                    print(format_results(results, cards, interpretations,
+                                         show_ascii=current_show_art,
+                                         system=current_system))
                 except ValueError as e:
                     print(f"Error: {e}")
-            else:
-                # Semantic search
-                results = search_cards(
-                    query, embeddings_data, model,
-                    top_k=5, system_filter=system,
-                )
-                print(format_results(results, cards, interpretations, system=system))
+                continue
+
+            # Semantic search
+            results = search_cards(
+                query, embeddings_data, model,
+                top_k=current_top_k, system_filter=current_system,
+            )
+            print(format_results(results, cards, interpretations,
+                                 show_ascii=current_show_art,
+                                 system=current_system))
 
         except KeyboardInterrupt:
             print("\n\nGoodbye! ✨")
@@ -439,7 +524,8 @@ def main():
     )
     parser.add_argument(
         '--system',
-        choices=['rws_traditional', 'thoth_crowley', 'jungian_psychological', 'modern_intuitive', 'combined'],
+        choices=['rws_traditional', 'thoth_crowley', 'jungian_psychological',
+                 'modern_intuitive', 'combined'],
         default='combined',
         metavar='SYSTEM',
         help='Filter by interpretation system: rws_traditional, thoth_crowley, jungian_psychological, modern_intuitive, combined (default: combined)'
@@ -475,7 +561,8 @@ def main():
 
     # Interactive mode
     if args.interactive:
-        interactive_mode(embeddings_data, cards, interpretations, model, system=args.system)
+        interactive_mode(embeddings_data, cards, interpretations, model,
+                         system=args.system)
         return
 
     # Similar card search
@@ -490,7 +577,8 @@ def main():
                 canonical, position, embeddings_data,
                 top_k=args.top, system_filter=args.system,
             )
-            print(format_results(results, cards, interpretations, args.ascii, format_type, system=args.system))
+            print(format_results(results, cards, interpretations, args.ascii,
+                                 format_type, system=args.system))
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -505,7 +593,8 @@ def main():
         args.query, embeddings_data, model,
         top_k=args.top, system_filter=args.system,
     )
-    print(format_results(results, cards, interpretations, args.ascii, format_type, system=args.system))
+    print(format_results(results, cards, interpretations, args.ascii,
+                         format_type, system=args.system))
 
 
 if __name__ == '__main__':

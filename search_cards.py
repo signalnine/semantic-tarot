@@ -368,6 +368,12 @@ def display_search_results(
             print()
 
 
+VALID_SYSTEMS = (
+    'rws_traditional', 'thoth_crowley', 'jungian_psychological',
+    'modern_intuitive', 'combined',
+)
+
+
 def interactive_search():
     """Interactive search interface.
 
@@ -389,6 +395,11 @@ def interactive_search():
         print(f"Error: {e}")
         return
 
+    # Session state -- can be changed via /system, /top, /art commands.
+    current_system = 'combined'
+    current_top_k = 5
+    current_show_art = False
+
     print("\n" + "=" * 70)
     print("TAROT CARD SEMANTIC SEARCH")
     print("=" * 70)
@@ -396,6 +407,11 @@ def interactive_search():
     print("Examples: 'new beginnings', 'letting go', 'inner strength', 'confusion'")
     print("\nCommands:")
     print("  /similar <card name>  - Find cards similar to a specific card")
+    print("  /system <name>        - Set interpretation system (rws_traditional,")
+    print("                          thoth_crowley, jungian_psychological,")
+    print("                          modern_intuitive, combined)")
+    print("  /top <n>              - Set number of results to return (default 5)")
+    print("  /art on|off           - Toggle ASCII art display (default off)")
     print("  /quit                 - Exit")
     print("=" * 70)
 
@@ -406,13 +422,70 @@ def interactive_search():
         if not query:
             continue
 
-        if query.lower() in ['/quit', '/exit', '/q']:
+        lower = query.lower()
+
+        if lower in ['/quit', '/exit', '/q']:
             print("\nGoodbye!")
             break
 
-        # Handle /similar command
-        if query.lower().startswith('/similar '):
-            card_name = query[9:].strip()
+        # /system <name>
+        if lower.startswith('/system'):
+            parts = query.split(None, 1)
+            if len(parts) < 2 or not parts[1].strip():
+                print(f"Current system: {current_system}")
+                print("Usage: /system <name>. Choices: " + ", ".join(VALID_SYSTEMS))
+                continue
+            requested = parts[1].strip()
+            if requested not in VALID_SYSTEMS:
+                print(f"✗ Unknown system: {requested}")
+                print("Choices: " + ", ".join(VALID_SYSTEMS))
+                continue
+            current_system = requested
+            print(f"✓ System set to: {current_system}")
+            continue
+
+        # /top <n>
+        if lower.startswith('/top'):
+            parts = query.split(None, 1)
+            if len(parts) < 2:
+                print(f"Current top: {current_top_k}")
+                print("Usage: /top <n>")
+                continue
+            try:
+                n = int(parts[1].strip())
+                if n < 0:
+                    raise ValueError
+            except ValueError:
+                print(f"✗ /top expects a non-negative integer, got: {parts[1]!r}")
+                continue
+            current_top_k = n
+            print(f"✓ Top set to: {current_top_k}")
+            continue
+
+        # /art on|off
+        if lower.startswith('/art'):
+            parts = query.split(None, 1)
+            if len(parts) < 2:
+                current_show_art = not current_show_art
+            else:
+                arg = parts[1].strip().lower()
+                if arg in ('on', 'true', '1', 'yes'):
+                    current_show_art = True
+                elif arg in ('off', 'false', '0', 'no'):
+                    current_show_art = False
+                else:
+                    print(f"✗ /art expects on or off, got: {arg!r}")
+                    continue
+            print(f"✓ Art display: {'on' if current_show_art else 'off'}")
+            continue
+
+        # /similar <card>
+        if lower == '/similar' or lower.startswith('/similar'):
+            parts = query.split(None, 1)
+            if len(parts) < 2 or not parts[1].strip():
+                print("✗ /similar requires a card name. Usage: /similar <card name>")
+                continue
+            card_name = parts[1].strip()
 
             # Find the card
             card = None
@@ -436,41 +509,49 @@ def interactive_search():
                     card['name'],
                     position,
                     embeddings_data,
-                    top_k=5
+                    top_k=current_top_k,
+                    system_filter=current_system,
                 )
-                display_search_results(results, cards_data, system='combined', interpretations_data=interpretations_data, show_art=False)
+                display_search_results(results, cards_data,
+                                       system=current_system,
+                                       interpretations_data=interpretations_data,
+                                       show_art=current_show_art)
             except ValueError as e:
                 print(f"✗ Error: {e}")
+            continue
 
-        else:
-            # Normal semantic search -- requires the OpenAI API.
-            if client is None:
-                api_key = os.getenv('OPENAI_API_KEY')
-                if not api_key:
-                    print(
-                        "Error: OPENAI_API_KEY environment variable not set"
-                    )
-                    print(
-                        "Set it with: export OPENAI_API_KEY='your-key-here'"
-                    )
-                    print(
-                        "(/similar still works without a key; it uses local embeddings.)"
-                    )
-                    continue
-                client = OpenAI(api_key=api_key)
-
-            print(f"\nSearching for: '{query}'...")
-
-            try:
-                results = search_cards(
-                    query,
-                    embeddings_data,
-                    client,
-                    top_k=5
+        # Normal semantic search -- requires the OpenAI API.
+        if client is None:
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                print(
+                    "Error: OPENAI_API_KEY environment variable not set"
                 )
-                display_search_results(results, cards_data, system='combined', interpretations_data=interpretations_data, show_art=False)
-            except Exception as e:
-                print(f"✗ Error: {e}")
+                print(
+                    "Set it with: export OPENAI_API_KEY='your-key-here'"
+                )
+                print(
+                    "(/similar still works without a key; it uses local embeddings.)"
+                )
+                continue
+            client = OpenAI(api_key=api_key)
+
+        print(f"\nSearching for: '{query}'...")
+
+        try:
+            results = search_cards(
+                query,
+                embeddings_data,
+                client,
+                top_k=current_top_k,
+                system_filter=current_system,
+            )
+            display_search_results(results, cards_data,
+                                   system=current_system,
+                                   interpretations_data=interpretations_data,
+                                   show_art=current_show_art)
+        except Exception as e:
+            print(f"✗ Error: {e}")
 
 
 def _non_negative_int(value):
