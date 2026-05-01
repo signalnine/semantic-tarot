@@ -1,6 +1,7 @@
 import json
 import random
 import os
+import sys
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -12,9 +13,17 @@ INTERPRETATIONS_FILE = os.path.join(HERE, 'interpretations.json')
 HISTORY_FILE = os.path.join(HERE, 'reading_history.json')
 DAILY_CARD_FILE = os.path.join(HERE, 'daily_card.json')
 
-# Load JSON files
-with open(CARDS_FILE) as file:
-    tarot_deck = json.load(file)
+# Load JSON files. cards.json is required to do anything useful, so a
+# missing file should produce a clear, actionable message rather than a
+# raw FileNotFoundError traceback at import time.
+try:
+    with open(CARDS_FILE) as file:
+        tarot_deck = json.load(file)
+except FileNotFoundError:
+    sys.stderr.write(
+        f"Error: Required data file cards.json not found at {CARDS_FILE}\n"
+    )
+    sys.exit(1)
 
 # Load interpretation systems
 try:
@@ -71,7 +80,12 @@ def display_card(card: Dict, is_reversed: bool = False, show_all_interpretations
     if is_reversed:
         print("Position: REVERSED")
         print(f"Meaning: {card['rdesc']}")
-        print(f"\n{card.get('reversed', card['card'])}")
+        if 'reversed' in card:
+            print(f"\n{card['reversed']}")
+        else:
+            # Avoid silently showing upright art under a REVERSED label.
+            print("\n(no reversed art for this card; showing upright)")
+            print(f"\n{card['card']}")
     else:
         print("Position: Upright")
         print(f"Meaning: {card['desc']}")
