@@ -1,41 +1,36 @@
-# Contract: search_cards.py interactive mode must not require OPENAI_API_KEY for /similar
+# Contract: Five bd issues
 
-## Bug (tarot-4lg)
+Tracks bd issues semantic-tarot-{5aa, ab7, 4f4, 1ho, 1sr}.
 
-`search_cards.py::interactive_search` (line 372) bails out at startup
-with "Error: OPENAI_API_KEY environment variable not set" if the
-environment variable is unset. But the in-session `/similar <card>`
-command operates entirely on pre-generated local embeddings -- it never
-calls the OpenAI API.
+## semantic-tarot-5aa: view_reading_history KeyError on non-list JSON
 
-This is the same bug pattern that was fixed for CLI mode in commit
-1978891 (`fix(search_cards): --similar no longer requires OPENAI_API_KEY`).
-The interactive equivalent was missed: a user who just wants to browse
-similarities locally must still have an API key, or use the CLI form.
+- [x] When `reading_history.json` contains a JSON object (dict), `view_reading_history()` does not raise. Verify via test: write `{"not":"a list"}` to history file, call `view_reading_history()`, assert it does not raise. Expect cleanup behavior consistent with `_load_history_or_recover`: corrupt file is backed up and the function reports a non-error message.
+- [x] Same for a JSON string payload (e.g. `"hello"`) and a JSON number payload.
+- [x] Existing tests in `test_reading_history.py` continue to pass.
 
-## Fix
+## semantic-tarot-ab7: daily_card AttributeError on non-dict JSON
 
-Defer the OpenAI client construction until a semantic search is actually
-attempted. `/similar` should run without an API key. Semantic search
-(non-`/` queries) should error gracefully when the key is missing,
-without exiting the interactive session.
+- [x] When `daily_card.json` contains a JSON list, `daily_card()` does not raise AttributeError. It falls through to fresh-card generation (writes a new dict-shaped file with today's date and a valid card_name). Verify via test.
+- [x] Same when the file contains a JSON string or number or null.
+- [x] Existing tests in `test_daily_card.py` continue to pass.
 
-## Criteria
+## semantic-tarot-1ho: search_cards.py relative paths
 
-- [x] `interactive_search` starts and accepts input even when
-      `OPENAI_API_KEY` is unset. Verify via test that patches input to
-      run `/similar The Fool`, `u`, then `/quit` and asserts the session
-      runs to completion without exiting early.
-- [x] `/similar <card>` produces results without an API key. Verify the
-      output contains `UPRIGHT` (or `REVERSED`) for at least one card.
-- [x] `/similar` does not construct an `OpenAI` client even when a key
-      is set. Verify by monkeypatching `OpenAI` to raise and confirming
-      `/similar` still works.
-- [x] A semantic (non-`/`) query without an API key prints an error
-      message containing `OPENAI_API_KEY` but does NOT exit the
-      interactive loop -- the user can still issue `/similar` or
-      `/quit` afterward. Verify via test.
-- [x] A semantic query with an API key set still works (sanity check
-      via existing unit tests; do not regress).
-- [x] All existing tests still pass: `pytest` exits 0 with current
-      pass count + new tests.
+- [x] `EMBEDDINGS_FILE`, `CARDS_FILE`, `INTERPRETATIONS_FILE` resolve to absolute paths anchored to `__file__`. Verified via a unit test that imports the module and asserts `os.path.isabs(...)` for each constant.
+- [x] Running `search_cards.py --similar 'The Fool' --top 2` from `/tmp` produces output (does not error with "Embeddings file not found"). Verified via subprocess test.
+
+## semantic-tarot-4f4: search_cards_cached.py + generate scripts relative paths
+
+- [x] `search_cards_cached.py`: `CARDS_FILE`, `INTERPRETATIONS_FILE`, and the auto-detected embeddings_file are absolute paths anchored to `__file__`. Verified via subprocess test running `--similar 'The Fool' --top 2 --model v1.5` from `/tmp`.
+- [x] `generate_embeddings.py`: `CARDS_FILE`, `INTERPRETATIONS_FILE`, `EMBEDDINGS_OUTPUT_FILE` are absolute paths. Unit test asserts `os.path.isabs`.
+- [x] `generate_embeddings_cached.py`: `CARDS_FILE`, `INTERPRETATIONS_FILE` are absolute paths. Unit test asserts `os.path.isabs`.
+
+## semantic-tarot-1sr: /similar prefix match too loose
+
+- [x] In `search_cards.py` interactive_search, `/similars`, `/similar2`, `/similartothis` are NOT routed to the /similar branch. Verify via test that pipes input `/similars\n/quit\n` and asserts the output does not say "/similar requires a card name" or "Card not found".
+- [x] Bare `/similar` (no args) still produces the help message. `/similar The Fool` still works.
+
+## Done
+
+- [x] All new tests pass.
+- [x] All existing tests still pass: `pytest` exits 0 with original 166 passed + 1 skipped, plus new tests.

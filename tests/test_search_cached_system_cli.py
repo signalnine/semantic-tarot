@@ -79,6 +79,11 @@ def test_similar_passes_system_filter(monkeypatch, cards, interpretations,
         _json.dumps(synthetic_embeddings)
     )
 
+    monkeypatch.setattr(search_cards_cached, "HERE", str(tmp_path))
+    monkeypatch.setattr(search_cards_cached, "CARDS_FILE",
+                        str(tmp_path / "cards.json"))
+    monkeypatch.setattr(search_cards_cached, "INTERPRETATIONS_FILE",
+                        str(tmp_path / "interpretations.json"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(search_cards_cached, "find_similar_cards", fake_find)
     monkeypatch.setattr(sys, "argv", [
@@ -112,6 +117,11 @@ def test_query_passes_system_filter(monkeypatch, cards, interpretations,
         _json.dumps(synthetic_embeddings)
     )
 
+    monkeypatch.setattr(search_cards_cached, "HERE", str(tmp_path))
+    monkeypatch.setattr(search_cards_cached, "CARDS_FILE",
+                        str(tmp_path / "cards.json"))
+    monkeypatch.setattr(search_cards_cached, "INTERPRETATIONS_FILE",
+                        str(tmp_path / "interpretations.json"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(search_cards_cached, "search_cards", fake_search)
     monkeypatch.setattr(sys, "argv", [
@@ -141,6 +151,11 @@ def test_system_threaded_to_format_results(monkeypatch, cards, interpretations,
                   system_filter=None, exclude_same_card=True):
         return [(card_name, position, 0.9)]
 
+    monkeypatch.setattr(search_cards_cached, "HERE", str(tmp_path))
+    monkeypatch.setattr(search_cards_cached, "CARDS_FILE",
+                        str(tmp_path / "cards.json"))
+    monkeypatch.setattr(search_cards_cached, "INTERPRETATIONS_FILE",
+                        str(tmp_path / "interpretations.json"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(search_cards_cached, "find_similar_cards", fake_find)
     monkeypatch.setattr(sys, "argv", [
@@ -172,6 +187,11 @@ def test_system_default_is_combined(monkeypatch, cards, interpretations,
         _json.dumps(synthetic_embeddings)
     )
 
+    monkeypatch.setattr(search_cards_cached, "HERE", str(tmp_path))
+    monkeypatch.setattr(search_cards_cached, "CARDS_FILE",
+                        str(tmp_path / "cards.json"))
+    monkeypatch.setattr(search_cards_cached, "INTERPRETATIONS_FILE",
+                        str(tmp_path / "interpretations.json"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(search_cards_cached, "find_similar_cards", fake_find)
     monkeypatch.setattr(sys, "argv", [
@@ -194,6 +214,11 @@ def test_system_choices_validated(monkeypatch, cards, synthetic_embeddings,
         _json.dumps(synthetic_embeddings)
     )
 
+    monkeypatch.setattr(search_cards_cached, "HERE", str(tmp_path))
+    monkeypatch.setattr(search_cards_cached, "CARDS_FILE",
+                        str(tmp_path / "cards.json"))
+    monkeypatch.setattr(search_cards_cached, "INTERPRETATIONS_FILE",
+                        str(tmp_path / "interpretations.json"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", [
         "search_cards_cached.py",

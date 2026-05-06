@@ -38,10 +38,12 @@ except ImportError:
     YAML_AVAILABLE = False
 
 
-# Configuration
-EMBEDDINGS_FILE = 'card_embeddings.json'
-CARDS_FILE = 'cards.json'
-INTERPRETATIONS_FILE = 'interpretations.json'
+# Configuration -- anchor data file paths to this script so the CLI works
+# from any working directory, not just the repo root.
+HERE = os.path.dirname(os.path.abspath(__file__))
+EMBEDDINGS_FILE = os.path.join(HERE, 'card_embeddings.json')
+CARDS_FILE = os.path.join(HERE, 'cards.json')
+INTERPRETATIONS_FILE = os.path.join(HERE, 'interpretations.json')
 
 
 def load_embeddings() -> List[Dict]:
@@ -480,7 +482,7 @@ def interactive_search():
             continue
 
         # /similar <card>
-        if lower == '/similar' or lower.startswith('/similar'):
+        if lower == '/similar' or lower.startswith('/similar '):
             parts = query.split(None, 1)
             if len(parts) < 2 or not parts[1].strip():
                 print("✗ /similar requires a card name. Usage: /similar <card name>")

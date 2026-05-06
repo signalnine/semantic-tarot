@@ -21,9 +21,11 @@ from typing import List, Dict
 # Import our new embedding cache!
 from embedding_cache import embed
 
-# Configuration
-CARDS_FILE = 'cards.json'
-INTERPRETATIONS_FILE = 'interpretations.json'
+# Configuration -- anchor data file paths to this script so it works from
+# any working directory, not just the repo root.
+HERE = os.path.dirname(os.path.abspath(__file__))
+CARDS_FILE = os.path.join(HERE, 'cards.json')
+INTERPRETATIONS_FILE = os.path.join(HERE, 'interpretations.json')
 
 # Model name mappings
 MODEL_MAP = {
@@ -240,9 +242,9 @@ def main():
     # Get full model name
     model = MODEL_MAP[args.model]
 
-    # Determine output file based on model
+    # Determine output file based on model (anchored to script dir)
     model_suffix = args.model.replace('-', '_').replace('.', '_')
-    output_file = f'card_embeddings_{model_suffix}.json'
+    output_file = os.path.join(HERE, f'card_embeddings_{model_suffix}.json')
 
     print("=" * 70)
     print("Tarot Card Embedding Generator (with embedding-cache)")

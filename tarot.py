@@ -373,12 +373,7 @@ def view_reading_history():
         print("\nNo reading history found.")
         return
 
-    try:
-        with open(HISTORY_FILE, 'r') as f:
-            history = json.load(f)
-    except Exception as e:
-        print(f"\n✗ Error loading history: {e}")
-        return
+    history = _load_history_or_recover()
 
     if not history:
         print("\nNo readings in history.")
@@ -424,7 +419,7 @@ def daily_card():
             with open(DAILY_CARD_FILE, 'r') as f:
                 daily_data = json.load(f)
 
-            if daily_data.get('date') == today:
+            if isinstance(daily_data, dict) and daily_data.get('date') == today:
                 saved_card = next(
                     (c for c in tarot_deck if c['name'] == daily_data.get('card_name')),
                     None

@@ -9,10 +9,12 @@ import os
 from typing import List, Dict
 from openai import OpenAI
 
-# Configuration
-CARDS_FILE = 'cards.json'
-INTERPRETATIONS_FILE = 'interpretations.json'
-EMBEDDINGS_OUTPUT_FILE = 'card_embeddings.json'
+# Configuration -- anchor data file paths to this script so it works from
+# any working directory, not just the repo root.
+HERE = os.path.dirname(os.path.abspath(__file__))
+CARDS_FILE = os.path.join(HERE, 'cards.json')
+INTERPRETATIONS_FILE = os.path.join(HERE, 'interpretations.json')
+EMBEDDINGS_OUTPUT_FILE = os.path.join(HERE, 'card_embeddings.json')
 
 def load_data():
     """Load cards and interpretations data"""
