@@ -64,14 +64,15 @@ def test_ascii_disabled_omits_art(cards_with_art):
     assert "REVERSED_FOOL_ART_MARKER" not in out
 
 
-def test_json_output_unchanged(cards_with_art):
+def test_json_output_matches_shared_schema(cards_with_art):
+    """JSON schema must match search_cards.py: card_name, position, similarity, meaning."""
     import json as _json
     results = [("The Fool", "upright", 0.9)]
     out = format_results(results, cards_with_art, {},
                          show_ascii=True, format_type="json")
     parsed = _json.loads(out)
-    assert parsed == [{"card": "The Fool", "position": "upright",
-                       "similarity": 0.9}]
+    assert parsed == [{"card_name": "The Fool", "position": "upright",
+                       "similarity": 0.9, "meaning": "New beginnings"}]
 
 
 def test_text_output_shows_upright_meaning(cards_with_art):

@@ -616,12 +616,15 @@ def main():
         action='store_true',
         help='Launch interactive search mode'
     )
-    parser.add_argument(
+    # --json and --yaml are mutually exclusive: passing both used to silently
+    # prefer JSON, which masked wrapper-script bugs.
+    output_format_group = parser.add_mutually_exclusive_group()
+    output_format_group.add_argument(
         '--json',
         action='store_true',
         help='Output results in JSON format'
     )
-    parser.add_argument(
+    output_format_group.add_argument(
         '--yaml',
         action='store_true',
         help='Output results in YAML format'

@@ -291,25 +291,49 @@ def format_results(
     Returns:
         Formatted string
     """
-    if format_type == 'json':
-        output = []
-        for card_name, position, score in results:
-            output.append({
-                'card': card_name,
-                'position': position,
-                'similarity': float(score)
-            })
-        return json.dumps(output, indent=2)
+    def _resolve_meaning(card_name, position):
+        """Mirror the text branch's priority: system-specific interpretation,
+        then the basic upright/reversed description from cards.json. Empty
+        string when no card data is available."""
+        card = next((c for c in cards if c['name'] == card_name), None)
+        if not card:
+            return ''
+        meaning = None
+        if system != 'combined' and interpretations:
+            card_interp = interpretations.get(card_name)
+            if card_interp and system in card_interp:
+                meaning = card_interp[system].get(position)
+        if not meaning:
+            meaning_key = 'rdesc' if position == 'reversed' else 'desc'
+            meaning = card.get(meaning_key) or card.get('desc', '')
+        return meaning or ''
 
-    elif format_type == 'yaml' and YAML_AVAILABLE:
-        output = []
-        for card_name, position, score in results:
-            output.append({
-                'card': card_name,
+    def _structured_results():
+        # Schema matches search_cards.py:format_results_as_data so downstream
+        # tools can parse output from either CLI identically.
+        return [
+            {
+                'card_name': card_name,
                 'position': position,
-                'similarity': float(score)
-            })
-        return yaml.dump(output, default_flow_style=False)
+                'similarity': float(score),
+                'meaning': _resolve_meaning(card_name, position),
+            }
+            for card_name, position, score in results
+        ]
+
+    if format_type == 'json':
+        return json.dumps(_structured_results(), indent=2)
+
+    elif format_type == 'yaml':
+        # Don't silently degrade to text when pyyaml is missing -- callers
+        # other than main() (e.g. interactive flows) would think they got
+        # YAML and emit text. Raise so the missing dependency is visible.
+        if not YAML_AVAILABLE:
+            raise RuntimeError(
+                "YAML output requested but pyyaml is not installed. "
+                "Install with: pip install pyyaml"
+            )
+        return yaml.dump(_structured_results(), default_flow_style=False)
 
     else:  # text format
         output_lines = []
@@ -394,7 +418,7 @@ def interactive_mode(
                 break
 
             # /system <name>
-            if lower.startswith('/system'):
+            if lower == '/system' or lower.startswith('/system '):
                 parts = query.split(None, 1)
                 if len(parts) < 2 or not parts[1].strip():
                     print(f"Current system: {current_system}")
@@ -410,7 +434,7 @@ def interactive_mode(
                 continue
 
             # /top <n>
-            if lower.startswith('/top'):
+            if lower == '/top' or lower.startswith('/top '):
                 parts = query.split(None, 1)
                 if len(parts) < 2:
                     print(f"Current top: {current_top_k}")
@@ -428,7 +452,7 @@ def interactive_mode(
                 continue
 
             # /art on|off
-            if lower.startswith('/art'):
+            if lower == '/art' or lower.startswith('/art '):
                 parts = query.split(None, 1)
                 if len(parts) < 2:
                     current_show_art = not current_show_art
@@ -513,10 +537,18 @@ def main():
     parser.add_argument('query', nargs='?', help='Search query')
     parser.add_argument('--similar', metavar='CARD', help='Find cards similar to this card')
     parser.add_argument('--reversed', action='store_true', help='Use reversed position for similarity search')
+    parser.add_argument(
+        '--include-same-card',
+        action='store_true',
+        help='Include same card in opposite position in similar results',
+    )
     parser.add_argument('--top', type=_non_negative_int, default=5, help='Number of results to return (default: 5)')
-    parser.add_argument('--ascii', '--art', action='store_true', help='Show ASCII art for cards')
-    parser.add_argument('--json', action='store_true', help='Output results as JSON')
-    parser.add_argument('--yaml', action='store_true', help='Output results as YAML')
+    parser.add_argument('--ascii', '--art', action='store_true', dest='show_art', help='Show ASCII art for cards')
+    # --json and --yaml are mutually exclusive: passing both used to silently
+    # prefer JSON, which masked wrapper-script bugs.
+    output_format_group = parser.add_mutually_exclusive_group()
+    output_format_group.add_argument('--json', action='store_true', help='Output results as JSON')
+    output_format_group.add_argument('--yaml', action='store_true', help='Output results as YAML')
     parser.add_argument('--interactive', '-i', action='store_true', help='Interactive search mode')
     parser.add_argument(
         '--model',
@@ -578,8 +610,9 @@ def main():
             results = find_similar_cards(
                 canonical, position, embeddings_data,
                 top_k=args.top, system_filter=args.system,
+                exclude_same_card=not args.include_same_card,
             )
-            print(format_results(results, cards, interpretations, args.ascii,
+            print(format_results(results, cards, interpretations, args.show_art,
                                  format_type, system=args.system))
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -595,7 +628,7 @@ def main():
         args.query, embeddings_data, model,
         top_k=args.top, system_filter=args.system,
     )
-    print(format_results(results, cards, interpretations, args.ascii,
+    print(format_results(results, cards, interpretations, args.show_art,
                          format_type, system=args.system))
 
 
