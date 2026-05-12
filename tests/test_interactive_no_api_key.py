@@ -82,6 +82,32 @@ def test_interactive_similar_does_not_construct_openai_client(
     assert "OpenAI client must not be constructed" not in out
 
 
+@pytest.mark.parametrize("bare_exit", ["quit", "exit", "q"])
+def test_interactive_bare_exit_words_exit_loop(monkeypatch, capsys, bare_exit):
+    """Bare 'quit'/'exit'/'q' must exit interactive_search, not reach search.
+
+    Regression for tarot-exy: previously these fell through to the semantic
+    search path and either complained about a missing OPENAI_API_KEY or spent
+    a billable token on the literal word 'quit'.
+    """
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _scripted_input(monkeypatch, bare_exit)
+    sc = _reload_search_cards(monkeypatch)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError(
+            f"bare {bare_exit!r} must not trigger OpenAI client construction"
+        )
+
+    monkeypatch.setattr(sc, "OpenAI", _boom)
+    sc.interactive_search()
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+
+    assert "Goodbye" in out
+    assert "OPENAI_API_KEY" not in out
+
+
 def test_interactive_semantic_without_key_warns_but_continues(
     monkeypatch, capsys
 ):

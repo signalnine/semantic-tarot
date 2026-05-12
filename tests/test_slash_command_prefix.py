@@ -116,3 +116,25 @@ def test_search_cards_similarity_query_falls_through(monkeypatch, cards,
     _drive_search(monkeypatch, ["/similarity", "/quit"], cards)
     out = capsys.readouterr().out
     assert "/similar requires a card name" not in out
+
+
+def test_search_cards_topic_query_falls_through(monkeypatch, cards, capsys):
+    """'/topic 5' must not be misrouted to /top (would mutate top_k)."""
+    _drive_search(monkeypatch, ["/topic 5", "/quit"], cards)
+    out = capsys.readouterr().out
+    assert "Top set to:" not in out
+
+
+def test_search_cards_article_query_falls_through(monkeypatch, cards, capsys):
+    """'/article on' must not flip the art toggle."""
+    _drive_search(monkeypatch, ["/article on", "/quit"], cards)
+    out = capsys.readouterr().out
+    assert "Art display:" not in out
+
+
+def test_search_cards_systemd_query_falls_through(monkeypatch, cards, capsys):
+    """'/systemd boot' must not reach the /system handler."""
+    _drive_search(monkeypatch, ["/systemd boot", "/quit"], cards)
+    out = capsys.readouterr().out
+    assert "Unknown system:" not in out
+    assert "System set to:" not in out

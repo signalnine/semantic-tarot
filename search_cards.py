@@ -426,12 +426,12 @@ def interactive_search():
 
         lower = query.lower()
 
-        if lower in ['/quit', '/exit', '/q']:
+        if lower in ['quit', 'exit', 'q', '/quit', '/exit', '/q']:
             print("\nGoodbye!")
             break
 
         # /system <name>
-        if lower.startswith('/system'):
+        if lower == '/system' or lower.startswith('/system '):
             parts = query.split(None, 1)
             if len(parts) < 2 or not parts[1].strip():
                 print(f"Current system: {current_system}")
@@ -447,7 +447,7 @@ def interactive_search():
             continue
 
         # /top <n>
-        if lower.startswith('/top'):
+        if lower == '/top' or lower.startswith('/top '):
             parts = query.split(None, 1)
             if len(parts) < 2:
                 print(f"Current top: {current_top_k}")
@@ -465,7 +465,7 @@ def interactive_search():
             continue
 
         # /art on|off
-        if lower.startswith('/art'):
+        if lower == '/art' or lower.startswith('/art '):
             parts = query.split(None, 1)
             if len(parts) < 2:
                 current_show_art = not current_show_art
