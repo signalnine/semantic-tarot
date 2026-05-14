@@ -52,6 +52,20 @@ MAJOR_ARCANA = [
     "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"
 ]
 
+def parse_position(raw: str) -> str:
+    """Parse user-typed position input into 'reversed' or 'upright'.
+
+    Accepts 'r', 'rev', 'reversed' (case-insensitive, with surrounding
+    whitespace) as reversed. Anything else (including empty) is upright.
+    """
+    if raw is None:
+        return 'upright'
+    s = raw.strip().lower()
+    if s in ('r', 'rev', 'reversed'):
+        return 'reversed'
+    return 'upright'
+
+
 def clear_screen():
     """Clear the terminal screen"""
     os.system('clear' if os.name != 'nt' else 'cls')
@@ -448,8 +462,11 @@ def daily_card():
         'is_reversed': is_reversed
     }
 
-    with open(DAILY_CARD_FILE, 'w') as f:
-        json.dump(daily_data, f)
+    try:
+        with open(DAILY_CARD_FILE, 'w') as f:
+            json.dump(daily_data, f)
+    except OSError as e:
+        print(f"\n⚠ Could not save daily card: {e}")
 
 def filter_by_arcana(arcana_type: str):
     """Filter cards by Major or Minor Arcana"""
@@ -543,8 +560,8 @@ def compare_interpretations():
         return
 
     # Ask for position
-    position = input("Upright or Reversed? (u/r, default: u): ").strip().lower()
-    is_reversed = position == 'r'
+    position = input("Upright or Reversed? (u/r, default: u): ")
+    is_reversed = parse_position(position) == 'reversed'
 
     # Display card with all interpretations
     display_card(card, is_reversed, show_all_interpretations=True)

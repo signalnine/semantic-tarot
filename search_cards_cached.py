@@ -81,6 +81,20 @@ def load_interpretations() -> Dict:
         return json.load(f)
 
 
+def parse_position(raw: str) -> str:
+    """Parse user-typed position input into 'reversed' or 'upright'.
+
+    Accepts 'r', 'rev', 'reversed' (case-insensitive, with surrounding
+    whitespace) as reversed. Anything else (including empty) is upright.
+    """
+    if raw is None:
+        return 'upright'
+    s = raw.strip().lower()
+    if s in ('r', 'rev', 'reversed'):
+        return 'reversed'
+    return 'upright'
+
+
 def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
     """
     Calculate cosine similarity between two vectors.
@@ -356,11 +370,18 @@ def format_results(
                     output_lines.append(f"   Meaning: {meaning}")
 
                 if show_ascii:
-                    art_key = 'reversed' if position == 'reversed' else 'card'
-                    art = card.get(art_key) or card.get('card', '')
-                    if art:
+                    if position == 'reversed' and card.get('reversed'):
+                        art = card['reversed']
                         output_lines.append("")
                         output_lines.append(art)
+                    else:
+                        art = card.get('card', '')
+                        if art:
+                            output_lines.append("")
+                            if position == 'reversed':
+                                # Avoid silently showing upright art under a REVERSED label.
+                                output_lines.append("(no reversed art for this card; showing upright)")
+                            output_lines.append(art)
 
         return "\n".join(output_lines)
 
@@ -388,6 +409,7 @@ def interactive_mode(
     current_system = system if system in VALID_SYSTEMS else 'combined'
     current_top_k = 5
     current_show_art = False
+    current_include_same_card = False
 
     print("\n" + "=" * 70)
     print("INTERACTIVE TAROT SEARCH (with embedding-cache)")
@@ -401,6 +423,9 @@ def interactive_mode(
     print("                        combined)")
     print("  /top <n>           - Set number of results (default 5)")
     print("  /art on|off        - Toggle ASCII art (default off)")
+    print("  /include-same-card on|off")
+    print("                     - Include same card in opposite position in")
+    print("                       similar results (default off)")
     print("  quit/exit          - Exit interactive mode")
     print()
 
@@ -468,6 +493,23 @@ def interactive_mode(
                 print(f"Art display: {'on' if current_show_art else 'off'}")
                 continue
 
+            # /include-same-card on|off (interactive parity with --include-same-card)
+            if lower == '/include-same-card' or lower.startswith('/include-same-card '):
+                parts = query.split(None, 1)
+                if len(parts) < 2:
+                    current_include_same_card = not current_include_same_card
+                else:
+                    arg = parts[1].strip().lower()
+                    if arg in ('on', 'true', '1', 'yes'):
+                        current_include_same_card = True
+                    elif arg in ('off', 'false', '0', 'no'):
+                        current_include_same_card = False
+                    else:
+                        print(f"Error: /include-same-card expects on or off, got: {arg!r}")
+                        continue
+                print(f"Include same card: {'on' if current_include_same_card else 'off'}")
+                continue
+
             # similar <card> or /similar <card>
             if lower == 'similar' or lower == '/similar' or \
                     lower.startswith('similar ') or lower.startswith('/similar '):
@@ -483,12 +525,13 @@ def interactive_mode(
                 if canonical is None:
                     print(f"Error: Card not found: {rest}")
                     continue
-                pos_input = input("Position (u/r, default: u): ").strip().lower()
-                position = 'reversed' if pos_input == 'r' else 'upright'
+                pos_input = input("Position (u/r, default: u): ")
+                position = parse_position(pos_input)
                 try:
                     results = find_similar_cards(
                         canonical, position, embeddings_data,
                         top_k=current_top_k, system_filter=current_system,
+                        exclude_same_card=not current_include_same_card,
                     )
                     print(format_results(results, cards, interpretations,
                                          show_ascii=current_show_art,

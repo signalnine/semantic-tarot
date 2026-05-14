@@ -70,6 +70,20 @@ def load_interpretations() -> Dict:
         return json.load(f)
 
 
+def parse_position(raw: str) -> str:
+    """Parse user-typed position input into 'reversed' or 'upright'.
+
+    Accepts 'r', 'rev', 'reversed' (case-insensitive, with surrounding
+    whitespace) as reversed. Anything else (including empty) is upright.
+    """
+    if raw is None:
+        return 'upright'
+    s = raw.strip().lower()
+    if s in ('r', 'rev', 'reversed'):
+        return 'reversed'
+    return 'upright'
+
+
 def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
     """
     Calculate cosine similarity between two vectors.
@@ -366,6 +380,9 @@ def display_search_results(
             if position == 'reversed' and 'reversed' in card:
                 print(card['reversed'])
             else:
+                if position == 'reversed':
+                    # Avoid silently showing upright art under a REVERSED label.
+                    print("(no reversed art for this card; showing upright)")
                 print(card['card'])
             print()
 
@@ -397,10 +414,12 @@ def interactive_search():
         print(f"Error: {e}")
         return
 
-    # Session state -- can be changed via /system, /top, /art commands.
+    # Session state -- can be changed via /system, /top, /art,
+    # /include-same-card commands.
     current_system = 'combined'
     current_top_k = 5
     current_show_art = False
+    current_include_same_card = False
 
     print("\n" + "=" * 70)
     print("TAROT CARD SEMANTIC SEARCH")
@@ -414,6 +433,9 @@ def interactive_search():
     print("                          modern_intuitive, combined)")
     print("  /top <n>              - Set number of results to return (default 5)")
     print("  /art on|off           - Toggle ASCII art display (default off)")
+    print("  /include-same-card on|off")
+    print("                        - Include same card in opposite position in")
+    print("                          /similar results (default off)")
     print("  /quit                 - Exit")
     print("=" * 70)
 
@@ -481,6 +503,23 @@ def interactive_search():
             print(f"✓ Art display: {'on' if current_show_art else 'off'}")
             continue
 
+        # /include-same-card on|off (interactive parity with --include-same-card)
+        if lower == '/include-same-card' or lower.startswith('/include-same-card '):
+            parts = query.split(None, 1)
+            if len(parts) < 2:
+                current_include_same_card = not current_include_same_card
+            else:
+                arg = parts[1].strip().lower()
+                if arg in ('on', 'true', '1', 'yes'):
+                    current_include_same_card = True
+                elif arg in ('off', 'false', '0', 'no'):
+                    current_include_same_card = False
+                else:
+                    print(f"✗ /include-same-card expects on or off, got: {arg!r}")
+                    continue
+            print(f"✓ Include same card: {'on' if current_include_same_card else 'off'}")
+            continue
+
         # /similar <card>
         if lower == '/similar' or lower.startswith('/similar '):
             parts = query.split(None, 1)
@@ -501,8 +540,8 @@ def interactive_search():
                 continue
 
             # Ask for position
-            pos_input = input("Position (u/r, default: u): ").strip().lower()
-            position = 'reversed' if pos_input == 'r' else 'upright'
+            pos_input = input("Position (u/r, default: u): ")
+            position = parse_position(pos_input)
 
             print(f"\nFinding cards similar to '{card['name']}' ({position})...")
 
@@ -513,6 +552,7 @@ def interactive_search():
                     embeddings_data,
                     top_k=current_top_k,
                     system_filter=current_system,
+                    exclude_same_card=not current_include_same_card,
                 )
                 display_search_results(results, cards_data,
                                        system=current_system,
