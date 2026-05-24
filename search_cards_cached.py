@@ -398,6 +398,9 @@ def interactive_mode(
     interpretations: Dict,
     model: str,
     system: str = 'combined',
+    top_k: int = 5,
+    show_art: bool = False,
+    include_same_card: bool = False,
 ):
     """Run interactive search mode.
 
@@ -405,11 +408,16 @@ def interactive_mode(
     /system, /top, and /art commands. The bare 'similar' or '/similar'
     forms (no card name) are rejected instead of being routed to
     semantic search.
+
+    Initial session state is seeded from the keyword arguments so CLI
+    flags (--system, --top, --ascii/--art, --include-same-card) carry
+    through into --interactive mode instead of being silently
+    discarded.
     """
     current_system = system if system in VALID_SYSTEMS else 'combined'
-    current_top_k = 5
-    current_show_art = False
-    current_include_same_card = False
+    current_top_k = top_k
+    current_show_art = show_art
+    current_include_same_card = include_same_card
 
     print("\n" + "=" * 70)
     print("INTERACTIVE TAROT SEARCH (with embedding-cache)")
@@ -639,7 +647,10 @@ def main():
     # Interactive mode
     if args.interactive:
         interactive_mode(embeddings_data, cards, interpretations, model,
-                         system=args.system)
+                         system=args.system,
+                         top_k=args.top,
+                         show_art=args.show_art,
+                         include_same_card=args.include_same_card)
         return
 
     # Similar card search

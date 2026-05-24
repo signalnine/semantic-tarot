@@ -393,13 +393,20 @@ VALID_SYSTEMS = (
 )
 
 
-def interactive_search():
+def interactive_search(system='combined', top_k=5, show_art=False,
+                       include_same_card=False):
     """Interactive search interface.
 
     The OpenAI client is built lazily: only semantic queries hit the
     API, so `/similar` works without OPENAI_API_KEY (it uses local
     pre-generated embeddings). A semantic query without a key prints
     an error and returns to the prompt instead of exiting the loop.
+
+    Initial session state is seeded from the keyword arguments so that
+    CLI flags (--system, --top, --ascii/--art, --include-same-card)
+    carry through into --interactive mode instead of being silently
+    discarded. Each value can still be overridden in-session via the
+    /system, /top, /art, /include-same-card commands.
     """
     client = None  # built on first semantic query that needs it
 
@@ -416,10 +423,10 @@ def interactive_search():
 
     # Session state -- can be changed via /system, /top, /art,
     # /include-same-card commands.
-    current_system = 'combined'
-    current_top_k = 5
-    current_show_art = False
-    current_include_same_card = False
+    current_system = system
+    current_top_k = top_k
+    current_show_art = show_art
+    current_include_same_card = include_same_card
 
     print("\n" + "=" * 70)
     print("TAROT CARD SEMANTIC SEARCH")
@@ -694,7 +701,12 @@ def main():
 
     # If no arguments or interactive flag, run interactive mode
     if args.interactive or (not args.query and not args.similar):
-        interactive_search()
+        interactive_search(
+            system=args.system,
+            top_k=args.top,
+            show_art=args.show_art,
+            include_same_card=args.include_same_card,
+        )
         return
 
     # Load data (purely local; no API key needed)

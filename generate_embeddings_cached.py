@@ -18,8 +18,9 @@ import json
 import os
 from typing import List, Dict
 
-# Import our new embedding cache!
-from embedding_cache import embed
+# embedding_cache is imported lazily inside generate_embeddings() so that
+# pure helpers (load_data, create_card_text_for_system) remain usable even
+# when the optional dependency is not installed.
 
 # Configuration -- anchor data file paths to this script so it works from
 # any working directory, not just the repo root.
